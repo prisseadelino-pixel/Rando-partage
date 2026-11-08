@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rando Offline</title>
     
+    <!-- Paramètres PWA et Mobile -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Rando">
+    
     <!-- Icône officielle (Favicon / Écran d'accueil mobile) -->
     <link rel="icon" type="image/jpeg" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
     <link rel="apple-touch-icon" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
@@ -20,7 +28,6 @@
         #app-header { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .app-title { font-weight: 700; font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; }
         
-        /* Style pour afficher ton logo image proprement dans l'en-tête */
         .app-logo { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         #network-status { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
@@ -81,7 +88,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // Chargement optionnel de la configuration depuis config.json
+        // Chargement de la configuration depuis config.json
         fetch('config.json')
             .then(response => response.json())
             .then(config => console.log("Config chargée :", config.app_name))
@@ -216,6 +223,15 @@
             a.click();
             document.body.removeChild(a);
         });
+
+        // Enregistrement du Service Worker pour le mode application mobile
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => console.log("Service Worker enregistré avec succès !"))
+                    .catch((err) => console.log("Erreur d'enregistrement du Service Worker :", err));
+            });
+        }
     </script>
 </body>
 </html>

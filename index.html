@@ -46,7 +46,6 @@
 
     <header id="app-header">
         <div class="app-title">
-            <!-- Ton vrai logo hébergé sur Servimg -->
             <img src="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg" alt="Logo" class="app-logo">
             Rando Offline
         </div>
@@ -82,6 +81,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
+        // Chargement optionnel de la configuration depuis config.json
+        fetch('config.json')
+            .then(response => response.json())
+            .then(config => console.log("Config chargée :", config.app_name))
+            .catch(() => console.log("Mode local / config par défaut"));
+
         const map = L.map('map', { zoomControl: false }).setView([45.1885, 5.7245], 14);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

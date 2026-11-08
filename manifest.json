@@ -1,0 +1,20 @@
+{
+  "name": "Rando Offline",
+  "short_name": "Rando",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

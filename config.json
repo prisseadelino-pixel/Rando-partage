@@ -1,0 +1,20 @@
+{
+    "app_name": "Rando Offline",
+    "version": "1.0.0",
+    "description": "Application de randonnée hors-ligne fonctionnant avec Leaflet et le GPS natif.",
+    "author": "Rando-partage",
+    "default_view": {
+        "latitude": 45.1885,
+        "longitude": 5.7245,
+        "zoom": 14
+    },
+    "features": {
+        "offline_support": true,
+        "gps_tracking": true,
+        "gpx_export": true,
+        "network_status_indicator": true
+    },
+    "branding": {
+        "logo_url": "https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg"
+    }
+}

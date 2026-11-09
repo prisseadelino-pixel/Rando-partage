@@ -36,24 +36,29 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Style des boutons de zoom (+ et -) */
+        /* Style renforcé pour les boutons de zoom (+ et -) */
         .leaflet-control-zoom {
+            position: absolute !important;
+            top: 75px !important;
+            right: 15px !important;
+            z-index: 998 !important;
             border: none !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-            border-radius: 14px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+            border-radius: 12px !important;
             overflow: hidden;
-            margin-top: 75px !important;
-            margin-right: 15px !important;
         }
         .leaflet-control-zoom a {
             background-color: white !important;
             color: #0f172a !important;
-            width: 44px !important;
-            height: 44px !important;
-            line-height: 44px !important;
+            width: 40px !important;
+            height: 40px !important;
+            line-height: 40px !important;
             font-size: 1.2rem !important;
             font-weight: bold !important;
             text-decoration: none;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
         .leaflet-control-zoom a:hover {
             background-color: #f1f5f9 !important;
@@ -71,7 +76,7 @@
         .btn-secondary { background: #0284c7; color: white; border: none; padding: 14px 14px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: none; }
         .btn-icon { background: white; color: #0f172a; border: none; width: 50px; border-radius: 14px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-        #photo-panel { position: absolute; top: 75px; left: 20px; right: 80px; z-index: 999; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        #photo-panel { position: absolute; top: 75px; left: 20px; right: 80px; z-index: 997; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
         .photo-thumb { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; flex-shrink: 0; }
 
@@ -140,7 +145,7 @@
         let routeCoordinates = [];
         let polyline = null;
         let randoPhotos = [];
-        let firstLocate = true; // Permet de centrer la carte une seule fois au démarrage sans bloquer le zoom ensuite
+        let firstLocate = true;
 
         let startTime = null;
         let timerInterval = null;
@@ -163,6 +168,7 @@
         function initApp(lat, lon, zoom) {
             if (map) return;
 
+            // zoomControl: true active les boutons + et -
             map = L.map('map', { zoomControl: true }).setView([lat, lon], zoom);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -172,12 +178,12 @@
 
             polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
 
-            // Bouton de localisation explicite : centre la carte et ajuste le zoom si l'utilisateur le demande
+            // Bouton de localisation rapide
             document.getElementById('btn-locate').addEventListener('click', () => {
                 map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            // Suivi en arrière-plan sans forcer le recentrage automatique (laisse l'utilisateur zoomer tranquillement)
+            // Suivi en arrière-plan sans forcer le recentrage (laisse l'utilisateur zoomer tranquillement)
             map.locate({watch: true, enableHighAccuracy: false, maximumAge: 10000});
 
             map.on('locationfound', (e) => {
@@ -193,7 +199,6 @@
                     marker = L.marker(latlng).addTo(map);
                     accuracyCircle = L.circle(latlng, { radius: e.accuracy / 2, color: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
                     
-                    // Au tout premier démarrage, on cadre sur l'utilisateur une seule fois
                     if (firstLocate) {
                         map.setView(latlng, 15);
                         firstLocate = false;

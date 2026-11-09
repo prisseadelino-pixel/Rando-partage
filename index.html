@@ -7,13 +7,12 @@
     
     <!-- Paramètres PWA et Mobile -->
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#ffffff">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Rando">
     
-    <!-- Icône officielle -->
     <link rel="icon" type="image/jpeg" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
     <link rel="apple-touch-icon" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
 
@@ -25,9 +24,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html { height: 100%; width: 100%; font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; overflow: hidden; }
         
-        #app-header { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #app-header { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .app-title { font-weight: 700; font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; }
-        
         .app-logo { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
         #network-status { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
@@ -36,27 +34,43 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons de zoom positionnés bien en vue au-dessus du panneau de stats */
-        #custom-zoom-controls { position: absolute; bottom: 170px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-        .zoom-btn { background: white; color: #0f172a; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
-        .zoom-btn:active { background: #f1f5f9; transform: scale(0.95); }
+        /* Boutons de zoom et localisation flottants à droite (style moderne) */
+        #floating-controls { position: absolute; top: 80px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .float-btn { background: white; color: #1e293b; border: none; width: 48px; height: 48px; border-radius: 14px; font-size: 1.3rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+        .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
-        #stats-panel { position: absolute; bottom: 90px; left: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-radius: 16px; padding: 15px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-        .stat-item { text-align: center; }
-        .stat-label { display: block; font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
-        .stat-value { font-size: 1rem; font-weight: 700; color: #0f172a; }
-        .stat-divider { width: 1px; height: 25px; background: #e2e8f0; }
+        /* Panneau de stats moderne glissant en bas (Style photos fournies) */
+        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s ease; }
+        .sheet-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
 
-        #controls { position: absolute; bottom: 25px; left: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px; }
-        .btn-primary { flex: 1; background: #0f172a; color: white; border: none; padding: 14px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
-        .btn-primary.active { background: #dc2626; }
-        .btn-secondary { background: #0284c7; color: white; border: none; padding: 14px 14px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: none; }
-        .btn-icon { background: white; color: #0f172a; border: none; width: 50px; border-radius: 14px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        /* Grille de statistiques 2x2 */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .stat-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; text-align: left; }
+        .stat-header { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 500; }
+        .stat-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
 
-        #photo-panel { position: absolute; top: 75px; left: 20px; right: 20px; z-index: 997; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        /* Section Dénivelé et Infos détaillées */
+        .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left; }
+        .elevation-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; }
+        .elevation-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 0.9rem; text-align: left; }
+        .elevation-item { color: #64748b; }
+        .elevation-item b { display: block; color: #0f172a; font-size: 1.05rem; margin-top: 2px; }
+
+        /* Boutons d'action principaux */
+        .action-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-main { width: 100%; padding: 15px; border-radius: 14px; font-weight: 600; font-size: 1rem; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-start { background: #0f172a; color: white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
+        .btn-start.active { background: #e11d48; }
+        .btn-pause { background: #f1f5f9; color: #0f172a; }
+        .btn-stop { background: #fff; color: #e11d48; border: 1px solid #ffe4e6; }
+
+        /* Galerie photos horizontale */
+        #photo-panel { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
-        .photo-thumb { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; flex-shrink: 0; }
+        .photo-thumb { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid #e2e8f0; cursor: pointer; flex-shrink: 0; }
+        .btn-add-photo { background: #e6fffa; color: #0d9488; border: 1px dashed #0d9488; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
 
+        /* Modale photo en grand */
         #photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; }
         #photo-modal img { max-width: 90%; max-height: 80vh; border-radius: 12px; border: 2px solid #fff; }
         #photo-modal button { margin-top: 20px; background: white; color: #0f172a; border: none; padding: 10px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; }
@@ -72,38 +86,63 @@
         <div id="network-status" class="status-online">En ligne</div>
     </header>
 
-    <!-- Boutons de zoom manuels -->
-    <div id="custom-zoom-controls">
-        <button class="zoom-btn" id="btn-zoom-in">+</button>
-        <button class="zoom-btn" id="btn-zoom-out">-</button>
+    <!-- Boutons Flottants (Zoom + Localisation) -->
+    <div id="floating-controls">
+        <button class="float-btn" id="btn-zoom-in">+</button>
+        <button class="float-btn" id="btn-zoom-out">-</button>
+        <button class="float-btn" id="btn-locate" style="background: #0f172a; color: white;">📍</button>
     </div>
-
-    <div id="photo-panel"></div>
 
     <div id="map"></div>
 
-    <div id="stats-panel">
-        <div class="stat-item">
-            <span class="stat-label">Distance</span>
-            <span id="stat-distance" class="stat-value">0.00 km</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-            <span class="stat-label">Temps</span>
-            <span id="stat-time" class="stat-value">00:00:00</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-            <span class="stat-label">Précision</span>
-            <span id="stat-accuracy" class="stat-value">-</span>
-        </div>
-    </div>
+    <!-- Panneau de Statistiques Style Moderne -->
+    <div id="bottom-sheet">
+        <div class="sheet-handle"></div>
 
-    <div id="controls">
-        <button id="btn-toggle-tracking" class="btn-primary">▶ Démarrer</button>
-        <button id="btn-export-gpx" class="btn-secondary">📁 GPX</button>
-        <button id="btn-add-photo" class="btn-secondary" style="background: #0d9488;">📷 Photos</button>
-        <button id="btn-locate" class="btn-icon">📍</button>
+        <!-- Grille 2x2 des métriques principales -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">⏱️ Durée</div>
+                <div id="stat-time" class="stat-value">00:00:00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">📍 Distance</div>
+                <div id="stat-distance" class="stat-value">0.00 km</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">⚡ Vitesse moy.</div>
+                <div id="stat-speed" class="stat-value">0.0 km/h</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">⛰️ Altitude</div>
+                <div id="stat-altitude" class="stat-value">- m</div>
+            </div>
+        </div>
+
+        <!-- Section Photos -->
+        <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours</div>
+        <div id="photo-panel">
+            <button class="btn-add-photo" onclick="document.getElementById('cameraInput').click()">📷</button>
+        </div>
+
+        <!-- Section Dénivelé -->
+        <div class="section-title">Dénivelé</div>
+        <div class="elevation-card">
+            <div class="elevation-row">
+                <div class="elevation-item">En montée <b>0 m</b></div>
+                <div class="elevation-item">Le plus haut <b id="stat-max-alt">- m</b></div>
+            </div>
+            <div class="elevation-row" style="margin-top: 12px;">
+                <div class="elevation-item">En descente <b>0 m</b></div>
+                <div class="elevation-item">Le plus bas <b id="stat-min-alt">- m</b></div>
+            </div>
+        </div>
+
+        <!-- Boutons d'Action -->
+        <div class="action-buttons">
+            <button id="btn-toggle-tracking" class="btn-main btn-start">▶ Démarrer la randonnée</button>
+            <button id="btn-export-gpx" class="btn-main" style="background: #0284c7; color: white; display: none;">📁 Exporter le fichier GPX</button>
+        </div>
     </div>
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
@@ -128,11 +167,11 @@
         let routeCoordinates = [];
         let polyline = null;
         let randoPhotos = [];
-        let firstLocate = true;
 
         let startTime = null;
         let timerInterval = null;
         let totalDistance = 0;
+        let altitudes = [];
 
         fetch('config.json')
             .then(response => response.json())
@@ -158,28 +197,28 @@
                 attribution: '© OpenStreetMap'
             }).addTo(map);
 
-            // Gestion des clics sur nos boutons + et -
-            document.getElementById('btn-zoom-in').addEventListener('click', () => {
-                map.zoomIn();
-            });
-            document.getElementById('btn-zoom-out').addEventListener('click', () => {
-                map.zoomOut();
-            });
+            document.getElementById('btn-zoom-in').addEventListener('click', () => map.zoomIn());
+            document.getElementById('btn-zoom-out').addEventListener('click', () => map.zoomOut());
 
-            polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
+            polyline = L.polyline([], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(map);
 
-            // Le bouton épingle rouge centre la carte sur la position actuelle à la demande
             document.getElementById('btn-locate').addEventListener('click', () => {
                 map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            // Première localisation automatique au démarrage pour placer le marqueur
             map.locate({setView: true, maxZoom: 15, enableHighAccuracy: false, maximumAge: 60000});
 
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
-                const accuracy = Math.round(e.accuracy);
-                document.getElementById('stat-accuracy').textContent = accuracy + ' m';
+                
+                // Gestion de l'altitude si disponible par le GPS
+                if (e.altitude !== null && e.altitude !== undefined) {
+                    const alt = Math.round(e.altitude);
+                    document.getElementById('stat-altitude').textContent = alt + ' m';
+                    altitudes.push(alt);
+                    document.getElementById('stat-max-alt').textContent = Math.max(...altitudes) + ' m';
+                    document.getElementById('stat-min-alt').textContent = Math.min(...altitudes) + ' m';
+                }
 
                 if (marker) {
                     marker.setLatLng(latlng);
@@ -197,6 +236,13 @@
                         if (dist > 3) {
                             totalDistance += dist;
                             document.getElementById('stat-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
+                            
+                            // Calcul de la vitesse moyenne approximative
+                            const elapsedSec = (Date.now() - startTime) / 1000;
+                            if (elapsedSec > 0) {
+                                const speedKmh = ((totalDistance / 1000) / (elapsedSec / 3600)).toFixed(1);
+                                document.getElementById('stat-speed').textContent = speedKmh + ' km/h';
+                            }
                         }
                     }
                     routeCoordinates.push(latlng);
@@ -209,18 +255,12 @@
             });
         }
 
-        document.getElementById('btn-add-photo').addEventListener('click', () => {
-            document.getElementById('cameraInput').click();
-        });
-
         function traiterPhoto(input) {
             if (!input.files || !input.files[0]) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const photoBase64 = e.target.result;
                 randoPhotos.push(photoBase64);
-                
-                document.getElementById('btn-add-photo').style.display = 'block';
                 
                 const panel = document.getElementById('photo-panel');
                 const imgThumb = document.createElement('img');
@@ -230,7 +270,7 @@
                     document.getElementById('modal-img-src').src = photoBase64;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                panel.appendChild(imgThumb);
+                panel.insertBefore(imgThumb, panel.firstChild); // Insère la nouvelle photo au début
             };
             reader.readAsDataURL(input.files[0]);
             input.value = "";
@@ -253,17 +293,16 @@
 
         const btnTracking = document.getElementById('btn-toggle-tracking');
         const btnExport = document.getElementById('btn-export-gpx');
-        const btnPhoto = document.getElementById('btn-add-photo');
 
         btnTracking.addEventListener('click', () => {
             isTracking = !isTracking;
             if (isTracking) {
-                btnTracking.textContent = '⏹ Arrêter';
+                btnTracking.textContent = '⏹ Arrêter la randonnée';
                 btnTracking.classList.add('active');
                 btnExport.style.display = 'none';
-                btnPhoto.style.display = 'block';
                 routeCoordinates = [];
                 totalDistance = 0;
+                altitudes = [];
                 startTime = Date.now();
                 
                 timerInterval = setInterval(() => {
@@ -275,13 +314,12 @@
                 }, 1000);
 
             } else {
-                btnTracking.textContent = '▶ Démarrer';
+                btnTracking.textContent = '▶ Démarrer la randonnée';
                 btnTracking.classList.remove('active');
                 clearInterval(timerInterval);
                 
                 if (routeCoordinates.length > 0) {
-                    btnExport.style.display = 'block';
-                    alert(`Randonnée enregistrée !\nDistance : ${(totalDistance / 1000).toFixed(2)} km\nPhotos prises : ${randoPhotos.length}`);
+                    btnExport.style.display = 'flex';
                 }
             }
         });
@@ -291,7 +329,7 @@
 
             let gpxData = `<?xml version="1.0" encoding="UTF-8"?>\n`;
             gpxData += `<gpx version="1.1" creator="RandoOffline">\n`;
-            gplyr += `  <trk>\n    <name>Ma Randonnée</name>\n    <trkseg>\n`;
+            gpxData += `  <trk>\n    <name>Ma Randonnée</name>\n    <trkseg>\n`;
 
             routeCoordinates.forEach(pt => {
                 gpxData += `      <trkpt lat="${pt.lat}" lon="${pt.lng}"></trkpt>\n`;

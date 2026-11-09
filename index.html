@@ -34,9 +34,9 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons Flottants à droite (Zoom, Localisation et Toggle Panneau) */
-        #floating-controls { position: absolute; top: 80px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-        .float-btn { background: white; color: #1e293b; border: none; width: 48px; height: 48px; border-radius: 14px; font-size: 1.3rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+        /* Boutons Flottants remontés et bien positionnés au-dessus du panneau */
+        #floating-controls { position: absolute; bottom: 155px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .float-btn { background: white; color: #1e293b; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
         .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
         /* Panneau de stats glissant */
@@ -87,7 +87,7 @@
         <div id="network-status" class="status-online">En ligne</div>
     </header>
 
-    <!-- Boutons Flottants (Zoom, Localisation, et un bouton dédié pour baisser/remonter le panneau) -->
+    <!-- Boutons Flottants (Zoom, Localisation, et Toggle Panneau) -->
     <div id="floating-controls">
         <button class="float-btn" id="btn-zoom-in">+</button>
         <button class="float-btn" id="btn-zoom-out">-</button>

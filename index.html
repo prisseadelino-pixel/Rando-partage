@@ -34,13 +34,17 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons de zoom et localisation flottants à droite (style moderne) */
+        /* Boutons de zoom et localisation flottants à droite */
         #floating-controls { position: absolute; top: 80px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
         .float-btn { background: white; color: #1e293b; border: none; width: 48px; height: 48px; border-radius: 14px; font-size: 1.3rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
         .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
-        /* Panneau de stats moderne glissant en bas (Style photos fournies) */
-        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s ease; }
+        /* Panneau de stats glissant (ajustable) */
+        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* État réduit du panneau (laisse voir la carte) */
+        #bottom-sheet.minimized { transform: translateY(calc(100% - 75px)); }
+
         .sheet-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
 
         /* Grille de statistiques 2x2 */
@@ -61,8 +65,6 @@
         .btn-main { width: 100%; padding: 15px; border-radius: 14px; font-weight: 600; font-size: 1rem; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-start { background: #0f172a; color: white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
         .btn-start.active { background: #e11d48; }
-        .btn-pause { background: #f1f5f9; color: #0f172a; }
-        .btn-stop { background: #fff; color: #e11d48; border: 1px solid #ffe4e6; }
 
         /* Galerie photos horizontale */
         #photo-panel { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
@@ -70,7 +72,6 @@
         .photo-thumb { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid #e2e8f0; cursor: pointer; flex-shrink: 0; }
         .btn-add-photo { background: #e6fffa; color: #0d9488; border: 1px dashed #0d9488; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
 
-        /* Modale photo en grand */
         #photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; }
         #photo-modal img { max-width: 90%; max-height: 80vh; border-radius: 12px; border: 2px solid #fff; }
         #photo-modal button { margin-top: 20px; background: white; color: #0f172a; border: none; padding: 10px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; }
@@ -86,7 +87,7 @@
         <div id="network-status" class="status-online">En ligne</div>
     </header>
 
-    <!-- Boutons Flottants (Zoom + Localisation) -->
+    <!-- Boutons Flottants -->
     <div id="floating-controls">
         <button class="float-btn" id="btn-zoom-in">+</button>
         <button class="float-btn" id="btn-zoom-out">-</button>
@@ -95,9 +96,9 @@
 
     <div id="map"></div>
 
-    <!-- Panneau de Statistiques Style Moderne -->
+    <!-- Panneau de Statistiques Rétractable -->
     <div id="bottom-sheet">
-        <div class="sheet-handle"></div>
+        <div class="sheet-handle" id="sheet-toggle"></div>
 
         <!-- Grille 2x2 des métriques principales -->
         <div class="stats-grid">
@@ -156,6 +157,14 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
+        // Gestion de l'ouverture / fermeture du panneau bas
+        const bottomSheet = document.getElementById('bottom-sheet');
+        const sheetToggle = document.getElementById('sheet-toggle');
+
+        sheetToggle.addEventListener('click', () => {
+            bottomSheet.classList.toggle('minimized');
+        });
+
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
         let defaultZoom = 12;
@@ -211,7 +220,6 @@
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
                 
-                // Gestion de l'altitude si disponible par le GPS
                 if (e.altitude !== null && e.altitude !== undefined) {
                     const alt = Math.round(e.altitude);
                     document.getElementById('stat-altitude').textContent = alt + ' m';
@@ -237,7 +245,6 @@
                             totalDistance += dist;
                             document.getElementById('stat-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
                             
-                            // Calcul de la vitesse moyenne approximative
                             const elapsedSec = (Date.now() - startTime) / 1000;
                             if (elapsedSec > 0) {
                                 const speedKmh = ((totalDistance / 1000) / (elapsedSec / 3600)).toFixed(1);
@@ -270,7 +277,7 @@
                     document.getElementById('modal-img-src').src = photoBase64;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                panel.insertBefore(imgThumb, panel.firstChild); // Insère la nouvelle photo au début
+                panel.insertBefore(imgThumb, panel.firstChild);
             };
             reader.readAsDataURL(input.files[0]);
             input.value = "";
@@ -316,7 +323,7 @@
             } else {
                 btnTracking.textContent = '▶ Démarrer la randonnée';
                 btnTracking.classList.remove('active');
-                clearInterval(timerInterval);
+                clearInterval(timerIdentifier = clearInterval(timerInterval));
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'flex';

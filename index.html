@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Rando">
     
-    <!-- Icône officielle (Favicon / Écran d'accueil mobile) -->
+    <!-- Icône officielle -->
     <link rel="icon" type="image/jpeg" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
     <link rel="apple-touch-icon" href="https://i49.servimg.com/u/f49/11/31/89/70/17941710.jpg">
 
@@ -36,7 +36,7 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Style personnalisé pour les boutons de zoom (+ et -) */
+        /* Style des boutons de zoom (+ et -) */
         .leaflet-control-zoom {
             border: none !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
@@ -143,7 +143,6 @@
         function initApp(lat, lon, zoom) {
             if (map) return;
 
-            // zoomControl: true active l'affichage des boutons de zoom (+ et -)
             map = L.map('map', { zoomControl: true }).setView([lat, lon], zoom);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -153,11 +152,13 @@
 
             polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
 
+            // Bouton de localisation optimisé et instantané
             document.getElementById('btn-locate').addEventListener('click', () => {
-                map.locate({setView: true, maxZoom: 16, enableHighAccuracy: true});
+                map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            map.locate({watch: true, enableHighAccuracy: true, maximumAge: 10000});
+            // Suivi en arrière-plan plus souple pour éviter les blocages
+            map.locate({watch: true, enableHighAccuracy: false, maximumAge: 10000});
 
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;

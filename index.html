@@ -34,20 +34,18 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons de zoom et localisation flottants à droite */
+        /* Boutons Flottants à droite (Zoom, Localisation et Toggle Panneau) */
         #floating-controls { position: absolute; top: 80px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
         .float-btn { background: white; color: #1e293b; border: none; width: 48px; height: 48px; border-radius: 14px; font-size: 1.3rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
         .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
-        /* Panneau de stats glissant (ajustable) */
-        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 10px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Panneau de stats glissant */
+        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* État réduit : seule la zone de la poignée dépasse en bas pour laisser voir la carte */
-        #bottom-sheet.minimized { transform: translateY(calc(100% - 50px)); }
+        /* État réduit : le panneau descend et seule la poignée dépasse légèrement */
+        #bottom-sheet.minimized { transform: translateY(calc(100% - 40px)); }
 
-        /* Zone cliquable élargie pour la poignée */
-        .sheet-handle-container { width: 100%; padding: 10px 0; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-        .sheet-handle { width: 50px; height: 6px; background: #94a3b8; border-radius: 3px; }
+        .sheet-handle { width: 50px; height: 6px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; }
 
         /* Grille de statistiques 2x2 */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
@@ -89,20 +87,19 @@
         <div id="network-status" class="status-online">En ligne</div>
     </header>
 
-    <!-- Boutons Flottants -->
+    <!-- Boutons Flottants (Zoom, Localisation, et un bouton dédié pour baisser/remonter le panneau) -->
     <div id="floating-controls">
         <button class="float-btn" id="btn-zoom-in">+</button>
         <button class="float-btn" id="btn-zoom-out">-</button>
-        <button class="float-btn" id="btn-locate" style="background: #0f172a; color: white;">📍</button>
+        <button class="float-btn" id="btn-locate" style="background: #0f172a; color: white;" title="Ma position">📍</button>
+        <button class="float-btn" id="btn-toggle-sheet" style="background: #0284c7; color: white;" title="Réduire/Agrandir le panneau">↕</button>
     </div>
 
     <div id="map"></div>
 
-    <!-- Panneau de Statistiques Rétractable -->
+    <!-- Panneau de Statistiques -->
     <div id="bottom-sheet">
-        <div class="sheet-handle-container" id="sheet-toggle">
-            <div class="sheet-handle"></div>
-        </div>
+        <div class="sheet-handle"></div>
 
         <!-- Grille 2x2 des métriques principales -->
         <div class="stats-grid">
@@ -158,20 +155,16 @@
     </div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // Gestion tactile et clic robuste pour réduire/agrandir le panneau
+        // Gestion du bouton flottant ↕ pour baisser/remonter le panneau proprement
         const bottomSheet = document.getElementById('bottom-sheet');
-        const sheetToggle = document.getElementById('sheet-toggle');
+        const btnToggleSheet = document.getElementById('btn-toggle-sheet');
 
-        function toggleSheet(e) {
-            e.preventDefault();
+        btnToggleSheet.addEventListener('click', () => {
             bottomSheet.classList.toggle('minimized');
-        }
-
-        sheetToggle.addEventListener('click', toggleSheet);
-        sheetToggle.addEventListener('touchend', toggleSheet);
+        });
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;

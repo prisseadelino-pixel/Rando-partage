@@ -36,33 +36,10 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Style renforcé pour les boutons de zoom (+ et -) */
-        .leaflet-control-zoom {
-            position: absolute !important;
-            top: 75px !important;
-            right: 15px !important;
-            z-index: 998 !important;
-            border: none !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-            border-radius: 12px !important;
-            overflow: hidden;
-        }
-        .leaflet-control-zoom a {
-            background-color: white !important;
-            color: #0f172a !important;
-            width: 40px !important;
-            height: 40px !important;
-            line-height: 40px !important;
-            font-size: 1.2rem !important;
-            font-weight: bold !important;
-            text-decoration: none;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-        }
-        .leaflet-control-zoom a:hover {
-            background-color: #f1f5f9 !important;
-        }
+        /* Boutons de zoom personnalisés en haut à droite */
+        #custom-zoom-controls { position: absolute; top: 75px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .zoom-btn { background: white; color: #0f172a; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
+        .zoom-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
         #stats-panel { position: absolute; bottom: 90px; left: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-radius: 16px; padding: 15px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
         .stat-item { text-align: center; }
@@ -94,6 +71,12 @@
         </div>
         <div id="network-status" class="status-online">En ligne</div>
     </header>
+
+    <!-- Boutons de zoom manuels -->
+    <div id="custom-zoom-controls">
+        <button class="zoom-btn" id="btn-zoom-in">+</button>
+        <button class="zoom-btn" id="btn-zoom-out">-</button>
+    </div>
 
     <div id="photo-panel"></div>
 
@@ -168,22 +151,28 @@
         function initApp(lat, lon, zoom) {
             if (map) return;
 
-            // zoomControl: true active les boutons + et -
-            map = L.map('map', { zoomControl: true }).setView([lat, lon], zoom);
+            // On désactive le zoomControl natif pour utiliser nos boutons propres
+            map = L.map('map', { zoomControl: false }).setView([lat, lon], zoom);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
             }).addTo(map);
 
+            // Gestion des clics sur nos boutons + et -
+            document.getElementById('btn-zoom-in').addEventListener('click', () => {
+                map.zoomIn();
+            });
+            document.getElementById('btn-zoom-out').addEventListener('click', () => {
+                map.zoomOut();
+            });
+
             polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
 
-            // Bouton de localisation rapide
             document.getElementById('btn-locate').addEventListener('click', () => {
                 map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            // Suivi en arrière-plan sans forcer le recentrage (laisse l'utilisateur zoomer tranquillement)
             map.locate({watch: true, enableHighAccuracy: false, maximumAge: 10000});
 
             map.on('locationfound', (e) => {

@@ -65,11 +65,21 @@
         .stat-value { font-size: 1rem; font-weight: 700; color: #0f172a; }
         .stat-divider { width: 1px; height: 25px; background: #e2e8f0; }
 
-        #controls { position: absolute; bottom: 25px; left: 20px; right: 20px; z-index: 1000; display: flex; gap: 12px; }
+        #controls { position: absolute; bottom: 25px; left: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px; }
         .btn-primary { flex: 1; background: #0f172a; color: white; border: none; padding: 14px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
         .btn-primary.active { background: #dc2626; }
-        .btn-secondary { background: #0284c7; color: white; border: none; padding: 14px 18px; border-radius: 14px; font-weight: 600; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: none; }
-        .btn-icon { background: white; color: #0f172a; border: none; width: 50px; border-radius: 14px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+        .btn-secondary { background: #0284c7; color: white; border: none; padding: 14px 14px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: none; }
+        .btn-icon { background: white; color: #0f172a; border: none; width: 50px; border-radius: 14px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        /* Panneau des photos prises en rando */
+        #photo-panel { position: absolute; top: 75px; left: 20px; right: 80px; z-index: 999; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        #photo-panel::-webkit-scrollbar { display: none; }
+        .photo-thumb { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; flex-shrink: 0; }
+
+        /* Visionneuse plein écran pour les photos */
+        #photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; }
+        #photo-modal img { max-width: 90%; max-height: 80vh; border-radius: 12px; border: 2px solid #fff; }
+        #photo-modal button { margin-top: 20px; background: white; color: #0f172a; border: none; padding: 10px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -81,6 +91,9 @@
         </div>
         <div id="network-status" class="status-online">En ligne</div>
     </header>
+
+    <!-- Miniatures des photos de rando -->
+    <div id="photo-panel"></div>
 
     <div id="map"></div>
 
@@ -104,7 +117,17 @@
     <div id="controls">
         <button id="btn-toggle-tracking" class="btn-primary">▶ Démarrer</button>
         <button id="btn-export-gpx" class="btn-secondary">📁 GPX</button>
+        <button id="btn-add-photo" class="btn-secondary" style="background: #0d9488;">📷 Photos</button>
         <button id="btn-locate" class="btn-icon">📍</button>
+    </div>
+
+    <!-- Input fichier masqué pour l'appareil photo -->
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
+
+    <!-- Modale d'affichage photo en grand -->
+    <div id="photo-modal" onclick="this.style.display='none'">
+        <img id="modal-img-src" src="" alt="Photo rando">
+        <button onclick="document.getElementById('photo-modal').style.display='none'">Fermer</button>
     </div>
 
     <!-- Leaflet JS -->
@@ -121,6 +144,7 @@
         let isTracking = false;
         let routeCoordinates = [];
         let polyline = null;
+        let randoPhotos = []; // Tableau pour stocker les photos de la sortie
 
         let startTime = null;
         let timerInterval = null;
@@ -152,12 +176,10 @@
 
             polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
 
-            // Bouton de localisation optimisé et instantané
             document.getElementById('btn-locate').addEventListener('click', () => {
                 map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            // Suivi en arrière-plan plus souple pour éviter les blocages
             map.locate({watch: true, enableHighAccuracy: false, maximumAge: 10000});
 
             map.on('locationfound', (e) => {
@@ -193,6 +215,36 @@
             });
         }
 
+        // Gestion des photos de rando
+        document.getElementById('btn-add-photo').addEventListener('click', () => {
+            document.getElementById('cameraInput').click();
+        });
+
+        function traiterPhoto(input) {
+            if (!input.files || !input.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const photoBase64 = e.target.result;
+                randoPhotos.push(photoBase64);
+                
+                // Affiche le bouton photo s'il y en a au moins une
+                document.getElementById('btn-add-photo').style.display = 'block';
+                
+                // Ajout de la miniature dans le panneau du haut
+                const panel = document.getElementById('photo-panel');
+                const imgThumb = document.createElement('img');
+                imgThumb.src = photoBase64;
+                imgThumb.className = 'photo-thumb';
+                imgThumb.onclick = () => {
+                    document.getElementById('modal-img-src').src = photoBase64;
+                    document.getElementById('photo-modal').style.display = 'flex';
+                };
+                panel.appendChild(imgThumb);
+            };
+            reader.readAsDataURL(input.files[0]);
+            input.value = ""; // Réinitialise l'input
+        }
+
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
 
@@ -210,6 +262,7 @@
 
         const btnTracking = document.getElementById('btn-toggle-tracking');
         const btnExport = document.getElementById('btn-export-gpx');
+        const btnPhoto = document.getElementById('btn-add-photo');
 
         btnTracking.addEventListener('click', () => {
             isTracking = !isTracking;
@@ -217,6 +270,7 @@
                 btnTracking.textContent = '⏹ Arrêter';
                 btnTracking.classList.add('active');
                 btnExport.style.display = 'none';
+                btnPhoto.style.display = 'block'; // Affiche le bouton photo pendant la rando
                 routeCoordinates = [];
                 totalDistance = 0;
                 startTime = Date.now();
@@ -236,7 +290,7 @@
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'block';
-                    alert(`Randonnée enregistrée !\nDistance : ${(totalDistance / 1000).toFixed(2)} km`);
+                    alert(`Randonnée enregistrée !\nDistance : ${(totalDistance / 1000).toFixed(2)} km\nPhotos prises : ${randoPhotos.length}`);
                 }
             }
         });

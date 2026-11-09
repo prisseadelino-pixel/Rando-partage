@@ -36,9 +36,9 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons de zoom personnalisés en haut à droite */
-        #custom-zoom-controls { position: absolute; top: 75px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
-        .zoom-btn { background: white; color: #0f172a; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
+        /* Boutons de zoom positionnés bien en vue au-dessus du panneau de stats */
+        #custom-zoom-controls { position: absolute; bottom: 170px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+        .zoom-btn { background: white; color: #0f172a; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.4rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
         .zoom-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
         #stats-panel { position: absolute; bottom: 90px; left: 20px; right: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-radius: 16px; padding: 15px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
@@ -53,7 +53,7 @@
         .btn-secondary { background: #0284c7; color: white; border: none; padding: 14px 14px; border-radius: 14px; font-weight: 600; font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: none; }
         .btn-icon { background: white; color: #0f172a; border: none; width: 50px; border-radius: 14px; font-size: 1.2rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
-        #photo-panel { position: absolute; top: 75px; left: 20px; right: 80px; z-index: 997; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        #photo-panel { position: absolute; top: 75px; left: 20px; right: 20px; z-index: 997; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
         .photo-thumb { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; flex-shrink: 0; }
 
@@ -151,7 +151,6 @@
         function initApp(lat, lon, zoom) {
             if (map) return;
 
-            // On désactive le zoomControl natif pour utiliser nos boutons propres
             map = L.map('map', { zoomControl: false }).setView([lat, lon], zoom);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -169,11 +168,13 @@
 
             polyline = L.polyline([], { color: '#2563eb', weight: 4, opacity: 0.8 }).addTo(map);
 
+            // Le bouton épingle rouge centre la carte sur la position actuelle à la demande
             document.getElementById('btn-locate').addEventListener('click', () => {
                 map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
             });
 
-            map.locate({watch: true, enableHighAccuracy: false, maximumAge: 10000});
+            // Première localisation automatique au démarrage pour placer le marqueur
+            map.locate({setView: true, maxZoom: 15, enableHighAccuracy: false, maximumAge: 60000});
 
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
@@ -187,11 +188,6 @@
                 } else {
                     marker = L.marker(latlng).addTo(map);
                     accuracyCircle = L.circle(latlng, { radius: e.accuracy / 2, color: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
-                    
-                    if (firstLocate) {
-                        map.setView(latlng, 15);
-                        firstLocate = false;
-                    }
                 }
 
                 if (isTracking) {
@@ -295,7 +291,7 @@
 
             let gpxData = `<?xml version="1.0" encoding="UTF-8"?>\n`;
             gpxData += `<gpx version="1.1" creator="RandoOffline">\n`;
-            gpxData += `  <trk>\n    <name>Ma Randonnée</name>\n    <trkseg>\n`;
+            gplyr += `  <trk>\n    <name>Ma Randonnée</name>\n    <trkseg>\n`;
 
             routeCoordinates.forEach(pt => {
                 gpxData += `      <trkpt lat="${pt.lat}" lon="${pt.lng}"></trkpt>\n`;

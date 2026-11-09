@@ -40,12 +40,14 @@
         .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
 
         /* Panneau de stats glissant (ajustable) */
-        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 10px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* État réduit du panneau : il descend et laisse voir la carte, seule la barre dépasse en bas */
-        #bottom-sheet.minimized { transform: translateY(calc(100% - 45px)); }
+        /* État réduit : seule la zone de la poignée dépasse en bas pour laisser voir la carte */
+        #bottom-sheet.minimized { transform: translateY(calc(100% - 50px)); }
 
-        .sheet-handle { width: 50px; height: 6px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
+        /* Zone cliquable élargie pour la poignée */
+        .sheet-handle-container { width: 100%; padding: 10px 0; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .sheet-handle { width: 50px; height: 6px; background: #94a3b8; border-radius: 3px; }
 
         /* Grille de statistiques 2x2 */
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
@@ -98,7 +100,9 @@
 
     <!-- Panneau de Statistiques Rétractable -->
     <div id="bottom-sheet">
-        <div class="sheet-handle" id="sheet-toggle" title="Réduire/Agrandir"></div>
+        <div class="sheet-handle-container" id="sheet-toggle">
+            <div class="sheet-handle"></div>
+        </div>
 
         <!-- Grille 2x2 des métriques principales -->
         <div class="stats-grid">
@@ -154,16 +158,20 @@
     </div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></script>
     
     <script>
-        // Gestion propre de l'ouverture / fermeture du panneau bas par clic sur la barre
+        // Gestion tactile et clic robuste pour réduire/agrandir le panneau
         const bottomSheet = document.getElementById('bottom-sheet');
         const sheetToggle = document.getElementById('sheet-toggle');
 
-        sheetToggle.addEventListener('click', () => {
+        function toggleSheet(e) {
+            e.preventDefault();
             bottomSheet.classList.toggle('minimized');
-        });
+        }
+
+        sheetToggle.addEventListener('click', toggleSheet);
+        sheetToggle.addEventListener('touchend', toggleSheet);
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;

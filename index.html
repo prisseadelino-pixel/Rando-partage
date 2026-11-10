@@ -141,7 +141,6 @@
             </div>
         </div>
 
-        <!-- Section Photos (Libre, jusqu'à 5 photos) -->
         <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
         <div id="photo-panel">
             <button class="btn-add-photo" id="btn-add-photo-el" onclick="document.getElementById('cameraInput').click()">📷</button>
@@ -220,16 +219,17 @@
                     const data = docSnap.data();
                     const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
                     const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
+                    const imgCover = (data.photos && data.photos.length > 0) ? data.photos[0] : 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80';
                     
                     const cardHTML = `
-                        <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0km'}...", "Inconnue", "-", "Parcours enregistré sur Firebase.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
+                        <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0 km'}", "Enregistrée", "-", "Parcours stocké sur Firebase.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
                             <div class="parcours-img-container">
-                                <img src="${data.photos && data.photos.length > 0 ? data.photos[0] : 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80'}" class="parcours-img" alt="Rando">
-                                <div class="parcours-badge">📍 ${data.distance || 'GPX'}</div>
+                                <img src="${imgCover}" class="parcours-img" alt="Rando">
+                                <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
                             </div>
                             <div class="parcours-info">
                                 <div class="parcours-name">${data.nom}</div>
-                                <div class="parcours-details">Cloud Firebase</div>
+                                <div class="parcours-details">Voir la carte</div>
                             </div>
                         </div>
                     `;
@@ -249,7 +249,7 @@
                     photos: photosArray || [],
                     date: new Date().toISOString()
                 });
-                alert("Parcours et photos enregistrés sur Firebase !");
+                alert("Parcours enregistré avec succès sur Firebase !");
                 chargerParcoursFirebase();
             } catch (e) {
                 console.error("Erreur sauvegarde : ", e);
@@ -314,7 +314,7 @@
         let routeCoordinates = [];
         let polyline = null;
         let importedRoutePolyline = null;
-        let randoPhotos = []; // Jusqu'à 5 photos max
+        let randoPhotos = [];
 
         let startTime = null;
         let timerInterval = null;
@@ -402,13 +402,7 @@
                     map.setView(latlng, 18);
                     firstLocate = false;
                 } else if (isTracking) {
-                    // Orientation dynamique de la carte dans le sens de la marche (Cap / heading)
-                    if (e.heading !== null && e.heading !== undefined && !isNaN(e.heading)) {
-                        map.setView(latlng, map.getZoom(), { animate: true });
-                        // Rotation fluide de la vue si supportée ou recentrage orienté
-                    } else {
-                        map.panTo(latlng);
-                    }
+                    map.panTo(latlng);
                 }
 
                 if (e.altitude !== null && e.altitude !== undefined) {
@@ -485,10 +479,15 @@
                     importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
                     map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
 
+                    let distCalc = 0;
+                    for (let i = 1; i < points.length; i++) {
+                        const p1 = L.latLng(points[i-1].lat, points[i-1].lng);
+                        const p2 = L.latLng(points[i].lat, points[i].lng);
+                        distCalc += p1.distanceTo(p2);
+                    }
+                    const distanceEstimee = (distCalc / 1000).toFixed(2) + ' km';
                     const nomRando = file.name.replace(/\.[^/.]+$/, "");
-                    const distanceEstimee = (points.length * 0.05).toFixed(1) + ' km';
 
-                    // Enregistrement sur Firebase avec les photos actuelles (jusqu'à 5)
                     if (window.sauvegarderParcoursFirebase) {
                         window.sauvegarderParcoursFirebase(nomRando, distanceEstimee, points, randoPhotos);
                     }
@@ -509,9 +508,9 @@
             const latLngs = points.map(p => [p.lat, p.lng]);
             importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
             map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
+            togglePanel(); // Réduit le panneau pour voir la carte
         }
 
-        // Gestion flexible des photos (jusqu'à 5 max à tout moment)
         window.traiterPhoto = function(input) {
             if (!input.files || !input.files[0]) return;
             if (randoPhotos.length >= 5) {
@@ -533,7 +532,6 @@
                 };
                 panel.insertBefore(imgThumb, document.getElementById('btn-add-photo-el'));
 
-                // Masquer le bouton si 5 photos atteintes
                 if (randoPhotos.length >= 5) {
                     document.getElementById('btn-add-photo-el').style.display = 'none';
                 }
@@ -569,7 +567,7 @@
                 routeCoordinates = [];
                 totalDistance = 0;
                 altitudes = [];
-                randoPhotos = []; // Réinitialise les photos pour une nouvelle rando enregistrée
+                randoPhotos = [];
                 startTime = Date.now();
                 
                 await requestWakeLock();
@@ -594,7 +592,6 @@
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'flex';
-                    // Proposer d'enregistrer la rando effectuée avec ses photos sur Firebase
                     const nomRando = `Rando du ${new Date().toLocaleDateString()}`;
                     const distanceStr = (totalDistance / 1000).toFixed(2) + ' km';
                     if (window.sauvegarderParcoursFirebase) {

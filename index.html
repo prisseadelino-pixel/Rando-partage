@@ -174,7 +174,7 @@
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
-        let defaultZoom = 12;
+        let defaultZoom = 16; // Zoom par défaut au plus près
 
         let map = null;
         let marker = null;
@@ -218,7 +218,7 @@
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
                     defaultLon = config.default_view.longitude;
-                    defaultZoom = config.default_view.zoom;
+                    defaultZoom = config.default_view.zoom || 16;
                 }
                 initApp(defaultLat, defaultLon, defaultZoom);
             })
@@ -262,7 +262,7 @@
             // GPS en continu avec watch: true pour suivre le déplacement en direct
             map.locate({ 
                 setView: true, 
-                maxZoom: 15, 
+                maxZoom: zoom, 
                 watch: true, 
                 enableHighAccuracy: true, 
                 maximumAge: 0 

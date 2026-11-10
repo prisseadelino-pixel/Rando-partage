@@ -174,7 +174,7 @@
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
-        let defaultZoom = 16; // Zoom par défaut au plus près
+        let defaultZoom = 17; // Zoom par défaut au plus près (niveau 17)
 
         let map = null;
         let marker = null;
@@ -218,7 +218,8 @@
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
                     defaultLon = config.default_view.longitude;
-                    defaultZoom = config.default_view.zoom || 16;
+                    // On force au moins le niveau 17 même si le json indique moins
+                    defaultZoom = Math.max(config.default_view.zoom || 17, 17);
                 }
                 initApp(defaultLat, defaultLon, defaultZoom);
             })
@@ -256,13 +257,13 @@
             polyline = L.polyline([], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(map);
 
             document.getElementById('btn-locate').addEventListener('click', () => {
-                map.locate({ setView: true, maxZoom: 16, watch: false, enableHighAccuracy: true });
+                map.locate({ setView: true, maxZoom: 17, watch: false, enableHighAccuracy: true });
             });
 
-            // GPS en continu avec watch: true pour suivre le déplacement en direct
+            // GPS en continu avec watch: true et un zoom au plus près (17)
             map.locate({ 
                 setView: true, 
-                maxZoom: zoom, 
+                maxZoom: 17, 
                 watch: true, 
                 enableHighAccuracy: true, 
                 maximumAge: 0 
@@ -293,7 +294,7 @@
                         const lastPoint = routeCoordinates[routeCoordinates.length - 1];
                         const dist = latlng.distanceTo(lastPoint);
                         
-                        if (dist > 2) { // Enregistre dès que l'on bouge de plus de 2 mètres
+                        if (dist > 2) { 
                             totalDistance += dist;
                             document.getElementById('stat-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
                             

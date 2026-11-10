@@ -34,7 +34,7 @@
 
         #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Boutons flottants ancrés en haut à droite pour ne pas gêner */
+        /* Boutons flottants ancrés en haut à droite */
         #floating-controls { position: absolute; top: 75px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
         .float-btn { background: white; color: #1e293b; border: none; width: 44px; height: 44px; border-radius: 12px; font-size: 1.2rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; }
         .float-btn:active { background: #f1f5f9; transform: scale(0.95); }
@@ -42,7 +42,7 @@
         /* Panneau de stats glissant en bas */
         #bottom-sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 15px 20px 25px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        /* État réduit : le panneau descend, seule la poignée dépasse pour libérer la carte */
+        /* État réduit : le panneau descend, seule la poignée dépasse */
         #bottom-sheet.minimized { transform: translateY(calc(100% - 40px)); }
 
         .sheet-handle { width: 50px; height: 6px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
@@ -53,7 +53,7 @@
         .stat-header { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 500; }
         .stat-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
 
-        /* Section Dénivelé et Infos détaillées */
+        /* Section Dénivelé */
         .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left; }
         .elevation-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; }
         .elevation-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 0.9rem; text-align: left; }
@@ -160,13 +160,13 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // Gestion de la réduction/agrandissement du panneau (via le bouton ↕ ou la barre grise)
         const bottomSheet = document.getElementById('bottom-sheet');
         const btnToggleSheet = document.getElementById('btn-toggle-sheet');
         const sheetHandleBar = document.getElementById('sheet-handle-bar');
 
         function togglePanel() {
             bottomSheet.classList.toggle('minimized');
+            setTimeout(() => { if(map) map.invalidateSize(); }, 300);
         }
 
         btnToggleSheet.addEventListener('click', togglePanel);
@@ -189,9 +189,31 @@
         let timerInterval = null;
         let totalDistance = 0;
         let altitudes = [];
+        let wakeLock = null;
 
+        // Gestion de l'anti-veille processeur / GPS en arrière-plan
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.warn(`${err.name}, ${err.message}`);
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible' && isTracking) {
+                await requestWakeLock();
+            }
+        });
+
+        // Chargement configuration initiale
         fetch('config.json')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error("config non trouvée");
+                return response.json();
+            })
             .then(config => {
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
@@ -209,7 +231,6 @@
 
             map = L.map('map', { zoomControl: false }).setView([lat, lon], zoom);
 
-            // Couches de tuiles (Standard + Topo optionnelle via layer control)
             const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '© OpenStreetMap'
@@ -231,13 +252,21 @@
             document.getElementById('btn-zoom-in').addEventListener('click', () => map.zoomIn());
             document.getElementById('btn-zoom-out').addEventListener('click', () => map.zoomOut());
 
+            // Tracé en cours (Bleu)
             polyline = L.polyline([], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(map);
 
             document.getElementById('btn-locate').addEventListener('click', () => {
-                map.locate({setView: true, maxZoom: 16, enableHighAccuracy: false, maximumAge: 60000, timeout: 5000});
+                map.locate({ setView: true, maxZoom: 16, watch: false, enableHighAccuracy: true });
             });
 
-            map.locate({setView: true, maxZoom: 15, enableHighAccuracy: false, maximumAge: 60000});
+            // GPS en continu avec watch: true pour suivre le déplacement en direct
+            map.locate({ 
+                setView: true, 
+                maxZoom: 15, 
+                watch: true, 
+                enableHighAccuracy: true, 
+                maximumAge: 0 
+            });
 
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
@@ -253,17 +282,18 @@
                 if (marker) {
                     marker.setLatLng(latlng);
                     accuracyCircle.setLatLng(latlng);
-                    accuracyCircle.setRadius(e.accuracy / 2);
+                    accuracyCircle.setRadius(e.accuracy ? e.accuracy / 2 : 10);
                 } else {
                     marker = L.marker(latlng).addTo(map);
-                    accuracyCircle = L.circle(latlng, { radius: e.accuracy / 2, color: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
+                    accuracyCircle = L.circle(latlng, { radius: e.accuracy ? e.accuracy / 2 : 10, color: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
                 }
 
                 if (isTracking) {
                     if (routeCoordinates.length > 0) {
                         const lastPoint = routeCoordinates[routeCoordinates.length - 1];
                         const dist = latlng.distanceTo(lastPoint);
-                        if (dist > 3) {
+                        
+                        if (dist > 2) { // Enregistre dès que l'on bouge de plus de 2 mètres
                             totalDistance += dist;
                             document.getElementById('stat-distance').textContent = (totalDistance / 1000).toFixed(2) + ' km';
                             
@@ -272,10 +302,12 @@
                                 const speedKmh = ((totalDistance / 1000) / (elapsedSec / 3600)).toFixed(1);
                                 document.getElementById('stat-speed').textContent = speedKmh + ' km/h';
                             }
+                            routeCoordinates.push(latlng);
+                            polyline.setLatLngs(routeCoordinates);
                         }
+                    } else {
+                        routeCoordinates.push(latlng);
                     }
-                    routeCoordinates.push(latlng);
-                    polyline.setLatLngs(routeCoordinates);
                 }
             });
 
@@ -284,7 +316,7 @@
             });
         }
 
-        // Fonction d'import de parcours GPX externe
+        // Import de fichiers GPX externes
         function importerFichierGPX(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
@@ -310,7 +342,6 @@
                     if (importedRoutePolyline) {
                         map.removeLayer(importedRoutePolyline);
                     }
-                    // Affiche le tracé importé en violet/rose pour le suivre
                     importedRoutePolyline = L.polyline(points, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
                     map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
                     alert(`Parcours "${file.name}" importé avec succès !`);
@@ -362,7 +393,7 @@
         const btnTracking = document.getElementById('btn-toggle-tracking');
         const btnExport = document.getElementById('btn-export-gpx');
 
-        btnTracking.addEventListener('click', () => {
+        btnTracking.addEventListener('click', async () => {
             isTracking = !isTracking;
             if (isTracking) {
                 btnTracking.textContent = '⏹ Arrêter la randonnée';
@@ -373,6 +404,8 @@
                 altitudes = [];
                 startTime = Date.now();
                 
+                await requestWakeLock();
+
                 timerInterval = setInterval(() => {
                     const elapsed = Math.floor((Date.now() - startTime) / 1000);
                     const hours = String(Math.floor(elapsed / 3600)).padStart(2, '0');
@@ -385,6 +418,11 @@
                 btnTracking.textContent = '▶ Démarrer la randonnée';
                 btnTracking.classList.remove('active');
                 clearInterval(timerInterval);
+                
+                if (wakeLock !== null) {
+                    wakeLock.release();
+                    wakeLock = null;
+                }
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'flex';

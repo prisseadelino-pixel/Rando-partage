@@ -6,7 +6,7 @@
     "default_view": {
         "latitude": 48.8566,
         "longitude": 2.3522,
-        "zoom": 12
+        "zoom": 16
     },
     "features": {
         "offline_support": true,

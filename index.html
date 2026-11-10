@@ -42,12 +42,28 @@
 
         .sheet-handle { width: 50px; height: 6px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
 
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        /* Section Carrousel "Mes parcours" */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin: 15px 0 10px; }
+        .section-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+        .section-action { font-size: 1.2rem; color: #64748b; cursor: pointer; }
+
+        .parcours-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .parcours-scroll::-webkit-scrollbar { display: none; }
+        
+        .parcours-card { width: 180px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+        .parcours-card:active { transform: scale(0.97); }
+        .parcours-img-container { position: relative; width: 100%; height: 110px; }
+        .parcours-img { width: 100%; height: 100%; object-fit: cover; }
+        .parcours-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px); }
+        .parcours-info { padding: 10px; }
+        .parcours-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .parcours-details { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; margin-top: 15px; }
         .stat-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; text-align: left; }
         .stat-header { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #64748b; margin-bottom: 6px; font-weight: 500; }
         .stat-value { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
 
-        .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left; }
         .elevation-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; margin-bottom: 15px; }
         .elevation-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; font-size: 0.9rem; text-align: left; }
         .elevation-item { color: #64748b; }
@@ -58,12 +74,20 @@
         .btn-start { background: #0f172a; color: white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2); }
         .btn-start.active { background: #e11d48; }
 
+        #parcours-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 6000; justify-content: center; align-items: flex-end; }
+        .modal-content { background: white; width: 100%; max-height: 85vh; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 20px; overflow-y: auto; text-align: left; }
+        .modal-header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-stats-row { display: flex; justify-content: space-between; background: #f8fafc; padding: 15px; border-radius: 14px; margin-bottom: 15px; text-align: center; }
+        .modal-stat-item span { display: block; font-size: 0.75rem; color: #64748b; }
+        .modal-stat-item b { font-size: 1.1rem; color: #0f172a; }
+        .modal-desc { font-size: 0.9rem; color: #334155; line-height: 1.5; margin-bottom: 20px; }
+
         #photo-panel { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
         .photo-thumb { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid #e2e8f0; cursor: pointer; flex-shrink: 0; }
         .btn-add-photo { background: #e6fffa; color: #0d9488; border: 1px dashed #0d9488; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
 
-        #photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; }
+        #photo-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 7000; justify-content: center; align-items: center; flex-direction: column; }
         #photo-modal img { max-width: 90%; max-height: 80vh; border-radius: 12px; border: 2px solid #fff; }
         #photo-modal button { margin-top: 20px; background: white; color: #0f172a; border: none; padding: 10px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; }
     </style>
@@ -90,6 +114,16 @@
     <div id="bottom-sheet">
         <div class="sheet-handle" id="sheet-handle-bar"></div>
 
+        <!-- Section "Mes parcours" avec Firebase -->
+        <div class="section-header">
+            <div class="section-title">Mes parcours</div>
+            <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
+        </div>
+        
+        <div class="parcours-scroll" id="parcours-container">
+            <!-- Les parcours chargés depuis Firebase s'ajouteront ici automatiquement -->
+        </div>
+
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-header">⏱️ Durée</div>
@@ -114,7 +148,7 @@
             <button class="btn-add-photo" onclick="document.getElementById('cameraInput').click()">📷</button>
         </div>
 
-        <div class="section-title">Dénivelé</div>
+        <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left;">Dénivelé</div>
         <div class="elevation-card">
             <div class="elevation-row">
                 <div class="elevation-item">En montée <b>0 m</b></div>
@@ -128,8 +162,24 @@
 
         <div class="action-buttons">
             <button id="btn-toggle-tracking" class="btn-main btn-start">▶ Démarrer la randonnée</button>
-            <button id="btn-import-gpx" class="btn-main" style="background: #10b981; color: white;" onclick="document.getElementById('gpxFileInput').click()">📂 Importer un parcours (GPX)</button>
             <button id="btn-export-gpx" class="btn-main" style="background: #0284c7; color: white; display: none;">📁 Exporter ma trace GPX</button>
+        </div>
+    </div>
+
+    <!-- Modale de détail d'un parcours -->
+    <div id="parcours-modal">
+        <div class="modal-content">
+            <div class="modal-header-actions">
+                <h2 id="modal-title" style="font-size: 1.2rem; color: #0f172a;">Titre</h2>
+                <button onclick="fermerFicheParcours()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            <div class="modal-stats-row">
+                <div class="modal-stat-item"><span>Longueur</span><b id="modal-len">0km</b></div>
+                <div class="modal-stat-item"><span>Durée</span><b id="modal-dur">0h</b></div>
+                <div class="modal-stat-item"><span>Dénivelé</span><b id="modal-ele">0 m</b></div>
+            </div>
+            <p class="modal-desc" id="modal-desc">Description...</p>
+            <button class="btn-main btn-start" onclick="fermerFicheParcours()" style="margin-bottom: 10px;">🟢 Fermer</button>
         </div>
     </div>
 
@@ -144,6 +194,73 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
+    <!-- Script Firebase & Application -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Tes identifiants Firebase officiels
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwi6NLtYKm6zna-9nICQkw5-9nICQkw5", // (mis à jour avec tes infos)
+            authDomain: "rando-offline.firebaseapp.com",
+            projectId: "rando-offline",
+            storageBucket: "rando-offline.appspot.com",
+            messagingSenderId: "607427823734",
+            appId: "1:607427823734:web:d44d744680a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Charger les parcours Firebase au démarrage
+        async function chargerParcoursFirebase() {
+            const container = document.getElementById('parcours-container');
+            container.innerHTML = "";
+            try {
+                const querySnapshot = await getDocs(collection(db, "parcours"));
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const cardHTML = `
+                        <div class="parcours-card" onclick="chargerTraceFirebase(${JSON.stringify(data.points).replace(/"/g, '&quot;')})">
+                            <div class="parcours-img-container">
+                                <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80" class="parcours-img" alt="Rando">
+                                <div class="parcours-badge">📍 ${data.distance || 'GPX'}</div>
+                            </div>
+                            <div class="parcours-info">
+                                <div class="parcours-name">${data.nom}</div>
+                                <div class="parcours-details">Cloud Firebase</div>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', cardHTML);
+                });
+            } catch (e) {
+                console.error("Erreur chargement Firebase : ", e);
+            }
+        }
+
+        // Sauvegarder un nouveau parcours GPX dans Firebase
+        window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray) {
+            try {
+                await addDoc(collection(db, "parcours"), {
+                    nom: nom,
+                    distance: distance,
+                    points: pointsArray,
+                    date: new Date().toISOString()
+                });
+                alert("Parcours enregistré sur Firebase avec succès !");
+                chargerParcoursFirebase();
+            } catch (e) {
+                console.error("Erreur sauvegarde : ", e);
+                alert("Erreur lors de la sauvegarde sur Firebase.");
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            chargerParcoursFirebase();
+        });
+    </script>
+
     <script>
         const bottomSheet = document.getElementById('bottom-sheet');
         const btnToggleSheet = document.getElementById('btn-toggle-sheet');
@@ -157,9 +274,22 @@
         btnToggleSheet.addEventListener('click', togglePanel);
         sheetHandleBar.addEventListener('click', togglePanel);
 
+        window.ouvrirFicheParcours = function(titre, longueur, duree, denivele, desc) {
+            document.getElementById('modal-title').textContent = titre;
+            document.getElementById('modal-len').textContent = longueur;
+            document.getElementById('modal-dur').textContent = duree;
+            document.getElementById('modal-ele').textContent = denivele;
+            document.getElementById('modal-desc').textContent = desc;
+            document.getElementById('parcours-modal').style.display = 'flex';
+        }
+
+        window.fermerFicheParcours = function() {
+            document.getElementById('parcours-modal').style.display = 'none';
+        }
+
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
-        let defaultZoom = 18; // FORCÉ À 18 (TRÈS PROCHE)
+        let defaultZoom = 18;
 
         let map = null;
         let marker = null;
@@ -193,7 +323,6 @@
             }
         });
 
-        // Chargement configuration initiale sécurisée (on ignore un éventuel zoom faible de config.json)
         fetch('config.json')
             .then(response => {
                 if (!response.ok) throw new Error("config non trouvée");
@@ -203,10 +332,6 @@
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
                     defaultLon = config.default_view.longitude;
-                    // On force un minimum de 18 pour le zoom quoi qu'il arrive
-                    if (config.default_view.zoom && config.default_view.zoom > defaultZoom) {
-                        defaultZoom = config.default_view.zoom;
-                    }
                 }
                 initApp(defaultLat, defaultLon, defaultZoom);
             })
@@ -257,7 +382,6 @@
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
                 
-                // Force le zoom à 18 à la toute première localisation GPS reçue
                 if (firstLocate) {
                     map.setView(latlng, 18);
                     firstLocate = false;
@@ -308,7 +432,8 @@
             });
         }
 
-        function importerFichierGPX(input) {
+        // Import GPX et enregistrement automatique sur Firebase
+        window.importerFichierGPX = function(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
             const reader = new FileReader();
@@ -325,7 +450,7 @@
                     const lat = parseFloat(pt.getAttribute("lat"));
                     const lon = parseFloat(pt.getAttribute("lon"));
                     if (!isNaN(lat) && !isNaN(lon)) {
-                        points.push([lat, lon]);
+                        points.push({ lat: lat, lng: lon });
                     }
                 });
 
@@ -333,9 +458,17 @@
                     if (importedRoutePolyline) {
                         map.removeLayer(importedRoutePolyline);
                     }
-                    importedRoutePolyline = L.polyline(points, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
+                    const latLngs = points.map(p => [p.lat, p.lng]);
+                    importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
                     map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
-                    alert(`Parcours "${file.name}" importé avec succès !`);
+
+                    const nomRando = file.name.replace(/\.[^/.]+$/, "");
+                    const distanceEstimee = (points.length * 0.05).toFixed(1) + ' km';
+
+                    // Enregistrement sur Firebase Firestore
+                    if (window.sauvegarderParcoursFirebase) {
+                        window.sauvegarderParcoursFirebase(nomRando, distanceEstimee, points);
+                    }
                 } else {
                     alert("Impossible de lire les points de ce fichier GPX.");
                 }
@@ -343,6 +476,17 @@
 
             reader.readAsText(file);
             input.value = "";
+        }
+
+        window.chargerTraceFirebase = function(points) {
+            if (!points || points.length === 0) return;
+            if (importedRoutePolyline) {
+                map.removeLayer(importedRoutePolyline);
+            }
+            const latLngs = points.map(p => [p.lat, p.lng]);
+            importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
+            map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
+            ouvrirFicheParcours("Parcours Cloud", "GPX", "Inconnue", "-", "Parcours chargé depuis Firebase.");
         }
 
         function traiterPhoto(input) {

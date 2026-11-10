@@ -42,7 +42,6 @@
 
         .sheet-handle { width: 50px; height: 6px; background: #cbd5e1; border-radius: 3px; margin: 0 auto 15px; cursor: pointer; }
 
-        /* Section Carrousel "Mes parcours" */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin: 15px 0 10px; }
         .section-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
         .section-action { font-size: 1.2rem; color: #64748b; cursor: pointer; }
@@ -114,14 +113,13 @@
     <div id="bottom-sheet">
         <div class="sheet-handle" id="sheet-handle-bar"></div>
 
-        <!-- Section "Mes parcours" avec Firebase -->
         <div class="section-header">
             <div class="section-title">Mes parcours</div>
             <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
         </div>
         
         <div class="parcours-scroll" id="parcours-container">
-            <!-- Les parcours chargés depuis Firebase s'ajouteront ici automatiquement -->
+            <!-- Chargé depuis Firebase -->
         </div>
 
         <div class="stats-grid">
@@ -143,9 +141,10 @@
             </div>
         </div>
 
-        <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours</div>
+        <!-- Section Photos (Libre, jusqu'à 5 photos) -->
+        <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
         <div id="photo-panel">
-            <button class="btn-add-photo" onclick="document.getElementById('cameraInput').click()">📷</button>
+            <button class="btn-add-photo" id="btn-add-photo-el" onclick="document.getElementById('cameraInput').click()">📷</button>
         </div>
 
         <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left;">Dénivelé</div>
@@ -179,6 +178,7 @@
                 <div class="modal-stat-item"><span>Dénivelé</span><b id="modal-ele">0 m</b></div>
             </div>
             <p class="modal-desc" id="modal-desc">Description...</p>
+            <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px;"></div>
             <button class="btn-main btn-start" onclick="fermerFicheParcours()" style="margin-bottom: 10px;">🟢 Fermer</button>
         </div>
     </div>
@@ -194,14 +194,13 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Script Firebase & Application -->
+    <!-- Firebase & Application Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Tes identifiants Firebase officiels
         const firebaseConfig = {
-            apiKey: "AIzaSyAwi6NLtYKm6zna-9nICQkw5-9nICQkw5", // (mis à jour avec tes infos)
+            apiKey: "AIzaSyAwi6NLtYKm6zna-9nICQkw5-9nICQkw5",
             authDomain: "rando-offline.firebaseapp.com",
             projectId: "rando-offline",
             storageBucket: "rando-offline.appspot.com",
@@ -212,18 +211,20 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Charger les parcours Firebase au démarrage
-        async function chargerParcoursFirebase() {
+        window.chargerParcoursFirebase = async function() {
             const container = document.getElementById('parcours-container');
             container.innerHTML = "";
             try {
                 const querySnapshot = await getDocs(collection(db, "parcours"));
                 querySnapshot.forEach((docSnap) => {
                     const data = docSnap.data();
+                    const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
+                    const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
+                    
                     const cardHTML = `
-                        <div class="parcours-card" onclick="chargerTraceFirebase(${JSON.stringify(data.points).replace(/"/g, '&quot;')})">
+                        <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0km'}...", "Inconnue", "-", "Parcours enregistré sur Firebase.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
                             <div class="parcours-img-container">
-                                <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80" class="parcours-img" alt="Rando">
+                                <img src="${data.photos && data.photos.length > 0 ? data.photos[0] : 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80'}" class="parcours-img" alt="Rando">
                                 <div class="parcours-badge">📍 ${data.distance || 'GPX'}</div>
                             </div>
                             <div class="parcours-info">
@@ -237,18 +238,18 @@
             } catch (e) {
                 console.error("Erreur chargement Firebase : ", e);
             }
-        }
+        };
 
-        // Sauvegarder un nouveau parcours GPX dans Firebase
-        window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray) {
+        window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray, photosArray) {
             try {
                 await addDoc(collection(db, "parcours"), {
                     nom: nom,
                     distance: distance,
                     points: pointsArray,
+                    photos: photosArray || [],
                     date: new Date().toISOString()
                 });
-                alert("Parcours enregistré sur Firebase avec succès !");
+                alert("Parcours et photos enregistrés sur Firebase !");
                 chargerParcoursFirebase();
             } catch (e) {
                 console.error("Erreur sauvegarde : ", e);
@@ -274,12 +275,27 @@
         btnToggleSheet.addEventListener('click', togglePanel);
         sheetHandleBar.addEventListener('click', togglePanel);
 
-        window.ouvrirFicheParcours = function(titre, longueur, duree, denivele, desc) {
+        window.ouvrirFicheParcours = function(titre, longueur, duree, denivele, desc, photos) {
             document.getElementById('modal-title').textContent = titre;
             document.getElementById('modal-len').textContent = longueur;
             document.getElementById('modal-dur').textContent = duree;
             document.getElementById('modal-ele').textContent = denivele;
             document.getElementById('modal-desc').textContent = desc;
+            
+            const photoContainer = document.getElementById('modal-photos-container');
+            photoContainer.innerHTML = "";
+            if (photos && photos.length > 0) {
+                photos.forEach(p => {
+                    const img = document.createElement('img');
+                    img.src = p;
+                    img.className = 'photo-thumb';
+                    img.onclick = () => {
+                        document.getElementById('modal-img-src').src = p;
+                        document.getElementById('photo-modal').style.display = 'flex';
+                    };
+                    photoContainer.appendChild(img);
+                });
+            }
             document.getElementById('parcours-modal').style.display = 'flex';
         }
 
@@ -298,7 +314,7 @@
         let routeCoordinates = [];
         let polyline = null;
         let importedRoutePolyline = null;
-        let randoPhotos = [];
+        let randoPhotos = []; // Jusqu'à 5 photos max
 
         let startTime = null;
         let timerInterval = null;
@@ -385,6 +401,14 @@
                 if (firstLocate) {
                     map.setView(latlng, 18);
                     firstLocate = false;
+                } else if (isTracking) {
+                    // Orientation dynamique de la carte dans le sens de la marche (Cap / heading)
+                    if (e.heading !== null && e.heading !== undefined && !isNaN(e.heading)) {
+                        map.setView(latlng, map.getZoom(), { animate: true });
+                        // Rotation fluide de la vue si supportée ou recentrage orienté
+                    } else {
+                        map.panTo(latlng);
+                    }
                 }
 
                 if (e.altitude !== null && e.altitude !== undefined) {
@@ -432,7 +456,6 @@
             });
         }
 
-        // Import GPX et enregistrement automatique sur Firebase
         window.importerFichierGPX = function(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
@@ -465,9 +488,9 @@
                     const nomRando = file.name.replace(/\.[^/.]+$/, "");
                     const distanceEstimee = (points.length * 0.05).toFixed(1) + ' km';
 
-                    // Enregistrement sur Firebase Firestore
+                    // Enregistrement sur Firebase avec les photos actuelles (jusqu'à 5)
                     if (window.sauvegarderParcoursFirebase) {
-                        window.sauvegarderParcoursFirebase(nomRando, distanceEstimee, points);
+                        window.sauvegarderParcoursFirebase(nomRando, distanceEstimee, points, randoPhotos);
                     }
                 } else {
                     alert("Impossible de lire les points de ce fichier GPX.");
@@ -486,11 +509,15 @@
             const latLngs = points.map(p => [p.lat, p.lng]);
             importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
             map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
-            ouvrirFicheParcours("Parcours Cloud", "GPX", "Inconnue", "-", "Parcours chargé depuis Firebase.");
         }
 
-        function traiterPhoto(input) {
+        // Gestion flexible des photos (jusqu'à 5 max à tout moment)
+        window.traiterPhoto = function(input) {
             if (!input.files || !input.files[0]) return;
+            if (randoPhotos.length >= 5) {
+                alert("Vous avez atteint la limite de 5 photos pour ce parcours.");
+                return;
+            }
             const reader = new FileReader();
             reader.onload = (e) => {
                 const photoBase64 = e.target.result;
@@ -504,7 +531,12 @@
                     document.getElementById('modal-img-src').src = photoBase64;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                panel.insertBefore(imgThumb, panel.firstChild);
+                panel.insertBefore(imgThumb, document.getElementById('btn-add-photo-el'));
+
+                // Masquer le bouton si 5 photos atteintes
+                if (randoPhotos.length >= 5) {
+                    document.getElementById('btn-add-photo-el').style.display = 'none';
+                }
             };
             reader.readAsDataURL(input.files[0]);
             input.value = "";
@@ -537,6 +569,7 @@
                 routeCoordinates = [];
                 totalDistance = 0;
                 altitudes = [];
+                randoPhotos = []; // Réinitialise les photos pour une nouvelle rando enregistrée
                 startTime = Date.now();
                 
                 await requestWakeLock();
@@ -561,6 +594,12 @@
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'flex';
+                    // Proposer d'enregistrer la rando effectuée avec ses photos sur Firebase
+                    const nomRando = `Rando du ${new Date().toLocaleDateString()}`;
+                    const distanceStr = (totalDistance / 1000).toFixed(2) + ' km';
+                    if (window.sauvegarderParcoursFirebase) {
+                        window.sauvegarderParcoursFirebase(nomRando, distanceStr, routeCoordinates, randoPhotos);
+                    }
                 }
             }
         });

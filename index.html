@@ -159,7 +159,7 @@
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
-        let defaultZoom = 18; // Zoom très serré par défaut
+        let defaultZoom = 18; // FORCÉ À 18 (TRÈS PROCHE)
 
         let map = null;
         let marker = null;
@@ -175,7 +175,7 @@
         let totalDistance = 0;
         let altitudes = [];
         let wakeLock = null;
-        let firstLocate = true; // Pour centrer et zoomer fort à la toute première acquisition GPS
+        let firstLocate = true;
 
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
@@ -193,6 +193,7 @@
             }
         });
 
+        // Chargement configuration initiale sécurisée (on ignore un éventuel zoom faible de config.json)
         fetch('config.json')
             .then(response => {
                 if (!response.ok) throw new Error("config non trouvée");
@@ -202,6 +203,10 @@
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
                     defaultLon = config.default_view.longitude;
+                    // On force un minimum de 18 pour le zoom quoi qu'il arrive
+                    if (config.default_view.zoom && config.default_view.zoom > defaultZoom) {
+                        defaultZoom = config.default_view.zoom;
+                    }
                 }
                 initApp(defaultLat, defaultLon, defaultZoom);
             })
@@ -239,11 +244,10 @@
 
             document.getElementById('btn-locate').addEventListener('click', () => {
                 if (marker) {
-                    map.setView(marker.getLatLng(), 18); // Recentrage manuel au zoom 18
+                    map.setView(marker.getLatLng(), 18);
                 }
             });
 
-            // Lancement du GPS en continu
             map.locate({ 
                 watch: true, 
                 enableHighAccuracy: true, 
@@ -253,7 +257,7 @@
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
                 
-                // Au premier signal GPS, on force le zoom à 18 pour être au plus près
+                // Force le zoom à 18 à la toute première localisation GPS reçue
                 if (firstLocate) {
                     map.setView(latlng, 18);
                     firstLocate = false;

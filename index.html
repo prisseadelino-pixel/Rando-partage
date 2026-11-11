@@ -81,7 +81,7 @@
         .modal-stat-item b { font-size: 1.1rem; color: #0f172a; }
         .modal-desc { font-size: 0.9rem; color: #334155; line-height: 1.5; margin-bottom: 20px; }
 
-        #photo-panel { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
+        #photo-panel { display: flex; gap: 8px; align-items: center; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
         .photo-thumb { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid #e2e8f0; cursor: pointer; flex-shrink: 0; }
         .btn-add-photo { background: #e6fffa; color: #0d9488; border: 1px dashed #0d9488; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 12px; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; }
@@ -143,8 +143,10 @@
 
         <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
         <div id="photo-panel">
-            <!-- Corrigé pour autoriser la galerie ou l'appareil photo du téléphone -->
-            <button class="btn-add-photo" id="btn-add-photo-el" onclick="document.getElementById('cameraInput').click()">📷</button>
+            <!-- Bouton Appareil Photo direct -->
+            <button class="btn-add-photo" id="btn-camera-el" onclick="document.getElementById('cameraCaptureInput').click()" title="Prendre une photo">📷</button>
+            <!-- Bouton Galerie -->
+            <button class="btn-add-photo" id="btn-gallery-el" onclick="document.getElementById('galleryInput').click()" title="Choisir dans la galerie" style="background: #f0fdf4; color: #16a34a; border-color: #16a34a;">🖼️</button>
         </div>
 
         <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left;">Dénivelé</div>
@@ -183,8 +185,9 @@
         </div>
     </div>
 
-    <!-- Input galerie / photo sans blocage de capture forcée -->
-    <input type="file" id="cameraInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
+    <!-- Inputs séparés pour Appareil Photo et Galerie -->
+    <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
+    <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
     <input type="file" id="gpxFileInput" accept=".gpx" style="display:none" onchange="importerFichierGPX(this)">
 
     <div id="photo-modal" onclick="this.style.display='none'">
@@ -532,10 +535,12 @@
                     document.getElementById('modal-img-src').src = photoBase64;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                panel.insertBefore(imgThumb, document.getElementById('btn-add-photo-el'));
+                // Insère la miniature avant les boutons d'ajout
+                panel.insertBefore(imgThumb, document.getElementById('btn-camera-el'));
 
                 if (randoPhotos.length >= 5) {
-                    document.getElementById('btn-add-photo-el').style.display = 'none';
+                    document.getElementById('btn-camera-el').style.display = 'none';
+                    document.getElementById('btn-gallery-el').style.display = 'none';
                 }
             };
             reader.readAsDataURL(input.files[0]);

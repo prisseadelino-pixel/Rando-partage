@@ -117,8 +117,8 @@
         <div class="section-header">
             <div class="section-title">Mes parcours</div>
             <div style="display: flex; gap: 8px; align-items: center;">
-                <button onclick="nettoyerDoublonsLocaux()" style="background:#fee2e2; color:#991b1b; border:none; border-radius:8px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Nettoyer les doublons">🧹 Nettoyer</button>
-                <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
+                <button id="btn-nettoyer" style="background:#fee2e2; color:#991b1b; border:none; border-radius:8px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Nettoyer les doublons">🧹 Nettoyer</button>
+                <div class="section-action" id="btn-add-gpx" title="Ajouter un GPX">📂 +</div>
             </div>
         </div>
         
@@ -145,8 +145,8 @@
 
         <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours en cours (Max 5)</div>
         <div id="photo-panel">
-            <button class="btn-add-photo" id="btn-camera-el" onclick="document.getElementById('cameraCaptureInput').click()" title="Prendre une photo">📷</button>
-            <button class="btn-add-photo" id="btn-gallery-el" onclick="document.getElementById('galleryInput').click()" title="Choisir dans la galerie" style="background: #f0fdf4; color: #16a34a; border-color: #16a34a;">🖼️</button>
+            <button class="btn-add-photo" id="btn-camera-el" title="Prendre une photo">📷</button>
+            <button class="btn-add-photo" id="btn-gallery-el" title="Choisir dans la galerie" style="background: #f0fdf4; color: #16a34a; border-color: #16a34a;">🖼️</button>
         </div>
 
         <div style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 20px 0 10px; text-align: left;">Dénivelé</div>
@@ -172,7 +172,7 @@
         <div class="modal-content">
             <div class="modal-header-actions">
                 <h2 id="modal-title" style="font-size: 1.2rem; color: #0f172a;">Titre</h2>
-                <button onclick="fermerFicheParcours()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                <button id="modal-close-x" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
             </div>
             <div class="modal-stats-row">
                 <div class="modal-stat-item"><span>Longueur</span><b id="modal-len">0km</b></div>
@@ -184,14 +184,14 @@
             <div style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px; text-align: left;">Photos de ce parcours (Max 5) :</div>
             <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; align-items: center;"></div>
 
-            <button class="btn-main btn-start" onclick="fermerFicheParcours()" style="margin-bottom: 10px;">🟢 Fermer</button>
+            <button class="btn-main btn-start" id="modal-close-btn" style="margin-bottom: 10px;">🟢 Fermer</button>
         </div>
     </div>
 
-    <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
-    <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
-    <input type="file" id="modalGalleryInput" accept="image/*" style="display:none" onchange="ajouterPhotoParcoursExistant(this)">
-    <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml" style="display:none" onchange="importerFichierGPX(this)">
+    <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="galleryInput" accept="image/*" style="display:none">
+    <input type="file" id="modalGalleryInput" accept="image/*" style="display:none">
+    <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml" style="display:none">
 
     <div id="photo-modal" onclick="this.style.display='none'">
         <img id="modal-img-src" src="" alt="Photo rando">
@@ -268,10 +268,10 @@
                 badge.textContent = `📍 ${data.distance || '0 km'}`;
                 imgContainer.appendChild(badge);
 
-                imgContainer.onclick = () => {
+                imgContainer.addEventListener('click', () => {
                     ouvrirFicheParcours(data.nom, data.distance || '0 km', 'Enregistrée', data.photos || []);
                     chargerTraceFirebase(data.points || []);
-                };
+                });
 
                 const info = document.createElement('div');
                 info.className = 'parcours-info';
@@ -279,19 +279,19 @@
                 const titleEl = document.createElement('div');
                 titleEl.className = 'parcours-name';
                 titleEl.textContent = data.nom;
-                titleEl.onclick = () => {
+                titleEl.addEventListener('click', () => {
                     ouvrirFicheParcours(data.nom, data.distance || '0 km', 'Enregistrée', data.photos || []);
                     chargerTraceFirebase(data.points || []);
-                };
+                });
 
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
                 delBtn.textContent = '🗑️';
                 delBtn.title = "Supprimer";
-                delBtn.onclick = (e) => {
+                delBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     supprimerParcours(data.nom);
-                };
+                });
 
                 info.appendChild(titleEl);
                 info.appendChild(delBtn);
@@ -367,6 +367,20 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             chargerParcoursFirebase();
+            
+            // Écouteurs globaux sécurisés
+            document.getElementById('btn-nettoyer').addEventListener('click', nettoyerDoublonsLocaux);
+            document.getElementById('btn-add-gpx').addEventListener('click', () => document.getElementById('gpxFileInput').click());
+            document.getElementById('btn-camera-el').addEventListener('click', () => document.getElementById('cameraCaptureInput').click());
+            document.getElementById('btn-gallery-el').addEventListener('click', () => document.getElementById('galleryInput').click());
+            
+            document.getElementById('cameraCaptureInput').addEventListener('change', (e) => traiterPhoto(e.target));
+            document.getElementById('galleryInput').addEventListener('change', (e) => traiterPhoto(e.target));
+            document.getElementById('modalGalleryInput').addEventListener('change', (e) => ajouterPhotoParcoursExistant(e.target));
+            document.getElementById('gpxFileInput').addEventListener('change', (e) => importerFichierGPX(e.target));
+            
+            document.getElementById('modal-close-x').addEventListener('click', fermerFicheParcours);
+            document.getElementById('modal-close-btn').addEventListener('click', fermerFicheParcours);
         });
     </script>
 
@@ -733,6 +747,10 @@
                 
                 if (polyline) {
                     polyline.setLatLngs([]);
+                }
+                if (importedRoutePolyline) {
+                    map.removeLayer(importedRoutePolyline);
+                    importedRoutePolyline = null;
                 }
 
                 await requestWakeLock();

@@ -243,7 +243,7 @@
                 }
             }
 
-            tousLesParcours.forEach((data, index) => {
+            tousLesParcours.forEach((data) => {
                 const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
                 const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
                 
@@ -252,7 +252,7 @@
                     : `<div class="parcours-placeholder">🥾</div>`;
                 
                 const cardHTML = `
-                    <div class="parcours-card" onclick='ouvrirFicheParcours(${index}, "${data.nom}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
+                    <div class="parcours-card" onclick='ouvrirFicheParcours("${encodeURIComponent(data.nom)}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
                         <div class="parcours-img-container">
                             ${imgCoverHTML}
                             <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
@@ -304,11 +304,12 @@
             }
         };
 
-        window.mettreAJourPhotosParcours = function(indexParcours, nouvellesPhotos) {
+        window.mettreAJourPhotosParcoursParNom = function(nomParcours, nouvellesPhotos) {
             try {
                 let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
-                if (localData[indexParcours]) {
-                    localData[indexParcours].photos = nouvellesPhotos;
+                let randoCible = localData.find(p => p.nom === nomParcours);
+                if (randoCible) {
+                    randoCible.photos = nouvellesPhotos;
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
                     chargerParcoursFirebase();
                 }
@@ -335,14 +336,14 @@
         btnToggleSheet.addEventListener('click', togglePanel);
         sheetHandleBar.addEventListener('click', togglePanel);
 
-        let parcoursActuelIndex = null;
+        let nomParcoursActuel = null;
         let photosParcoursActuel = [];
 
-        window.ouvrirFicheParcours = function(index, titre, longueur, duree, photos) {
-            parcoursActuelIndex = index;
+        window.ouvrirFicheParcours = function(nomEncoded, longueur, duree, photos) {
+            nomParcoursActuel = decodeURIComponent(nomEncoded);
             photosParcoursActuel = photos || [];
 
-            document.getElementById('modal-title').textContent = titre;
+            document.getElementById('modal-title').textContent = nomParcoursActuel;
             document.getElementById('modal-len').textContent = longueur;
             document.getElementById('modal-dur').textContent = duree;
             
@@ -383,8 +384,8 @@
                 photosParcoursActuel.push(base64);
                 rafraichirModalPhotos();
 
-                if (parcoursActuelIndex !== null && window.mettreAJourPhotosParcours) {
-                    window.mettreAJourPhotosParcours(parcoursActuelIndex, photosParcoursActuel);
+                if (nomParcoursActuel && window.mettreAJourPhotosParcoursParNom) {
+                    window.mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
                 }
             };
             reader.readAsDataURL(input.files[0]);
@@ -697,7 +698,7 @@
                     }
                 }
 
-                // VIDAGE RADICAL DU TRACÉ ACTIF DE LA CARTE À L'ARRÊT
+                // EFFACEMENT SÉCURISÉ DE LA TRACE ACTIVE À L'ARRÊT
                 routeCoordinates = [];
                 if (polyline) {
                     polyline.setLatLngs([]);

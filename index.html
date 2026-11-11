@@ -44,7 +44,11 @@
 
         .section-header { display: flex; justify-content: space-between; align-items: center; margin: 15px 0 10px; }
         .section-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
-        .section-action { font-size: 1.2rem; color: #64748b; cursor: pointer; }
+        
+        .folder-filter-container { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; scrollbar-width: none; }
+        .folder-filter-container::-webkit-scrollbar { display: none; }
+        .folder-chip { background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; white-space: nowrap; border: 1px solid #e2e8f0; }
+        .folder-chip.active { background: #0f172a; color: white; border-color: #0f172a; }
 
         .parcours-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
         .parcours-scroll::-webkit-scrollbar { display: none; }
@@ -55,6 +59,8 @@
         .parcours-img { width: 100%; height: 100%; object-fit: cover; }
         .parcours-placeholder { font-size: 2rem; color: #94a3b8; }
         .parcours-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px); }
+        .folder-tag { position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.8); color: white; padding: 2px 6px; border-radius: 6px; font-size: 0.65rem; font-weight: 600; backdrop-filter: blur(4px); }
+        
         .parcours-info { padding: 10px; display: flex; justify-content: space-between; align-items: center; }
         .parcours-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; flex-grow: 1; }
         .delete-btn { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; width: 28px; height: 28px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -120,6 +126,11 @@
                 <button id="btn-nettoyer" style="background:#fee2e2; color:#991b1b; border:none; border-radius:8px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Nettoyer les doublons">🧹 Nettoyer</button>
                 <div class="section-action" id="btn-add-gpx" title="Ajouter un GPX">📂 +</div>
             </div>
+        </div>
+
+        <!-- Filtres par dossiers -->
+        <div class="folder-filter-container" id="folder-filter-container">
+            <div class="folder-chip active" data-folder="Tous">📁 Tous</div>
         </div>
         
         <div class="parcours-scroll" id="parcours-container"></div>
@@ -220,18 +231,53 @@
 
         let nomParcoursActuel = null;
         let photosParcoursActuel = [];
+        let dossierActuelFiltre = "Tous";
 
         function chargerParcoursLocaux() {
             const container = document.getElementById('parcours-container');
+            const folderFilterContainer = document.getElementById('folder-filter-container');
             container.innerHTML = "";
+            
             let tousLesParcours = [];
+            let dossiersSet = new Set();
 
             try {
                 const localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
                 tousLesParcours.push(...localData);
             } catch(err) { console.error(err); }
 
-            tousLesParcours.forEach((data) => {
+            // Récupérer tous les dossiers uniques existants
+            tousLesParcours.forEach(p => {
+                if (p.dossier) dossiersSet.add(p.dossier);
+            });
+
+            // Reconstruire la barre de filtres des dossiers
+            folderFilterContainer.innerHTML = `<div class="folder-chip ${dossierActuelFiltre === 'Tous' ? 'active' : ''}" data-folder="Tous">📁 Tous</div>`;
+            dossiersSet.forEach(dossier => {
+                const chip = document.createElement('div');
+                chip.className = `folder-chip ${dossierActuelFiltre === dossier ? 'active' : ''}`;
+                chip.dataset.folder = dossier;
+                chip.textContent = `📂 ${dossier}`;
+                chip.addEventListener('click', () => {
+                    dossierActuelFiltre = dossier;
+                    chargerParcoursLocaux();
+                });
+                folderFilterContainer.appendChild(chip);
+            });
+
+            // Remettre l'écouteur sur "Tous"
+            folderFilterContainer.querySelector('[data-folder="Tous"]').addEventListener('click', () => {
+                dossierActuelFiltre = "Tous";
+                chargerParcoursLocaux();
+            });
+
+            // Filtrer selon le dossier sélectionné
+            const parcoursAffiches = tousLesParcours.filter(p => {
+                if (dossierActuelFiltre === "Tous") return true;
+                return p.dossier === dossierActuelFiltre;
+            });
+
+            parcoursAffiches.forEach((data) => {
                 const card = document.createElement('div');
                 card.className = 'parcours-card';
 
@@ -248,6 +294,13 @@
                     placeholder.className = 'parcours-placeholder';
                     placeholder.textContent = '🥾';
                     imgContainer.appendChild(placeholder);
+                }
+
+                if (data.dossier) {
+                    const folderTag = document.createElement('div');
+                    folderTag.className = 'folder-tag';
+                    folderTag.textContent = data.dossier;
+                    imgContainer.appendChild(folderTag);
                 }
 
                 const badge = document.createElement('div');
@@ -325,9 +378,16 @@
             } catch(e) { console.error(e); }
         }
 
-        window.sauvegarderParcoursLocal = function(nom, distance, pointsArray, photosArray) {
+        window.sauvegarderParcoursLocal = function(nomDefaut, distance, pointsArray, photosArray) {
+            let nomRando = prompt("Nom de la randonnée :", nomDefaut);
+            if (!nomRando) return;
+
+            let dossierRando = prompt("Dans quel dossier souhaitez-vous enregistrer ce parcours ? (ex: Montagne, Forêt, Vacances)", "Général");
+            if (!dossierRando) dossierRando = "Général";
+
             const nouveauParcours = {
-                nom: nom,
+                nom: nomRando,
+                dossier: dossierRando,
                 distance: distance,
                 points: pointsArray,
                 photos: photosArray || [],
@@ -336,10 +396,10 @@
 
             try {
                 let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
-                localData = localData.filter(p => p.nom !== nom);
+                localData = localData.filter(p => p.nom !== nomRando);
                 localData.push(nouveauParcours);
                 localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                alert("Randonnée enregistrée avec succès !");
+                alert("Randonnée enregistrée avec succès dans le dossier : " + dossierRando);
                 chargerParcoursLocaux();
             } catch (err) {
                 console.error("Erreur stockage local :", err);
@@ -435,7 +495,6 @@
 
         function fermerFicheParcours() {
             document.getElementById('parcours-modal').style.display = 'none';
-            // LE TRACÉ RESTE BIEN AFFICHÉ SUR LA CARTE QUAND ON FERME LA FICHE
         }
 
         document.addEventListener('DOMContentLoaded', () => {

@@ -80,7 +80,7 @@
         .modal-stats-row { display: flex; justify-content: space-between; background: #f8fafc; padding: 15px; border-radius: 14px; margin-bottom: 15px; text-align: center; }
         .modal-stat-item span { display: block; font-size: 0.75rem; color: #64748b; }
         .modal-stat-item b { font-size: 1.1rem; color: #0f172a; }
-        .modal-desc { font-size: 0.9rem; color: #334155; line-height: 1.5; margin-bottom: 20px; }
+        .modal-desc { font-size: 0.9rem; color: #334155; line-height: 1.5; margin-bottom: 15px; }
 
         #photo-panel { display: flex; gap: 8px; align-items: center; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
         #photo-panel::-webkit-scrollbar { display: none; }
@@ -142,7 +142,7 @@
             </div>
         </div>
 
-        <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
+        <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours en cours (Max 5)</div>
         <div id="photo-panel">
             <button class="btn-add-photo" id="btn-camera-el" onclick="document.getElementById('cameraCaptureInput').click()" title="Prendre une photo">📷</button>
             <button class="btn-add-photo" id="btn-gallery-el" onclick="document.getElementById('galleryInput').click()" title="Choisir dans la galerie" style="background: #f0fdf4; color: #16a34a; border-color: #16a34a;">🖼️</button>
@@ -166,7 +166,7 @@
         </div>
     </div>
 
-    <!-- Modale de détail d'un parcours -->
+    <!-- Modale de détail d'un parcours (avec gestion des photos et modification) -->
     <div id="parcours-modal">
         <div class="modal-content">
             <div class="modal-header-actions">
@@ -178,14 +178,22 @@
                 <div class="modal-stat-item"><span>Durée</span><b id="modal-dur">0h</b></div>
                 <div class="modal-stat-item"><span>Dénivelé</span><b id="modal-ele">0 m</b></div>
             </div>
-            <p class="modal-desc" id="modal-desc">Description...</p>
-            <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px;"></div>
+            <p class="modal-desc" id="modal-desc">Parcours de randonnée.</p>
+            
+            <div style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px; text-align: left;">Photos de ce parcours (Max 5) :</div>
+            <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; align-items: center;">
+                <!-- Les photos existantes + bouton pour en ajouter depuis la galerie -->
+            </div>
+
             <button class="btn-main btn-start" onclick="fermerFicheParcours()" style="margin-bottom: 10px;">🟢 Fermer</button>
         </div>
     </div>
 
     <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
     <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
+    <!-- Input spécifique pour ajouter une photo directement depuis la modale d'un parcours existant -->
+    <input type="file" id="modalGalleryInput" accept="image/*" style="display:none" onchange="ajouterPhotoParcoursExistant(this)">
+    
     <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml" style="display:none" onchange="importerFichierGPX(this)">
 
     <div id="photo-modal" onclick="this.style.display='none'">
@@ -242,17 +250,16 @@
                 }
             }
 
-            tousLesParcours.forEach((data) => {
+            tousLesParcours.forEach((data, index) => {
                 const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
                 const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
                 
-                // Utilisation exclusive de la vraie photo de l'utilisateur si elle existe, sinon affichage d'un placeholder neutre
                 const imgCoverHTML = (data.photos && data.photos.length > 0) 
                     ? `<img src="${data.photos[0]}" class="parcours-img" alt="Rando">`
                     : `<div class="parcours-placeholder">🥾</div>`;
                 
                 const cardHTML = `
-                    <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0 km'}", "Enregistrée", "-", "Parcours de randonnée.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
+                    <div class="parcours-card" onclick='ouvrirFicheParcours(${index}, "${data.nom}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
                         <div class="parcours-img-container">
                             ${imgCoverHTML}
                             <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
@@ -283,7 +290,7 @@
                     await addDoc(collection(db, "parcours"), nouveauParcours);
                     sauvegarderReussie = true;
                 } catch (e) {
-                    console.warn("Erreur Firebase, bascule sur la sauvegarde locale du téléphone.");
+                    console.warn("Erreur Firebase, sauvegarde locale de secours.");
                 }
             }
 
@@ -301,6 +308,19 @@
                 chargerParcoursFirebase();
             } else {
                 alert("Erreur lors de l'enregistrement du parcours.");
+            }
+        };
+
+        window.mettreAJourPhotosParcours = function(indexParcours, nouvellesPhotos) {
+            try {
+                let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                if (localData[indexParcours]) {
+                    localData[indexParcours].photos = nouvellesPhotos;
+                    localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
+                    chargerParcoursFirebase();
+                }
+            } catch(e) {
+                console.error("Erreur mise à jour photo :", e);
             }
         };
 
@@ -322,28 +342,60 @@
         btnToggleSheet.addEventListener('click', togglePanel);
         sheetHandleBar.addEventListener('click', togglePanel);
 
-        window.ouvrirFicheParcours = function(titre, longueur, duree, denivele, desc, photos) {
+        let parcoursActuelIndex = null;
+        let photosParcoursActuel = [];
+
+        window.ouvrirFicheParcours = function(index, titre, longueur, duree, photos) {
+            parcoursActuelIndex = index;
+            photosParcoursActuel = photos || [];
+
             document.getElementById('modal-title').textContent = titre;
             document.getElementById('modal-len').textContent = longueur;
             document.getElementById('modal-dur').textContent = duree;
-            document.getElementById('modal-ele').textContent = denivele;
-            document.getElementById('modal-desc').textContent = desc;
             
+            rafraichirModalPhotos();
+            document.getElementById('parcours-modal').style.display = 'flex';
+        }
+
+        window.rafraichirModalPhotos = function() {
             const photoContainer = document.getElementById('modal-photos-container');
             photoContainer.innerHTML = "";
-            if (photos && photos.length > 0) {
-                photos.forEach(p => {
-                    const img = document.createElement('img');
-                    img.src = p;
-                    img.className = 'photo-thumb';
-                    img.onclick = () => {
-                        document.getElementById('modal-img-src').src = p;
-                        document.getElementById('photo-modal').style.display = 'flex';
-                    };
-                    photoContainer.appendChild(img);
-                });
+
+            photosParcoursActuel.forEach(p => {
+                const img = document.createElement('img');
+                img.src = p;
+                img.className = 'photo-thumb';
+                img.onclick = () => {
+                    document.getElementById('modal-img-src').src = p;
+                    document.getElementById('photo-modal').style.display = 'flex';
+                };
+                photoContainer.appendChild(img);
+            });
+
+            if (photosParcoursActuel.length < 5) {
+                const btnAdd = document.createElement('button');
+                btnAdd.className = 'btn-add-photo';
+                btnAdd.innerHTML = '🖼️+';
+                btnAdd.title = "Ajouter une photo depuis la galerie";
+                btnAdd.onclick = () => document.getElementById('modalGalleryInput').click();
+                photoContainer.appendChild(btnAdd);
             }
-            document.getElementById('parcours-modal').style.display = 'flex';
+        }
+
+        window.ajouterPhotoParcoursExistant = function(input) {
+            if (!input.files || !input.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64 = e.target.result;
+                photosParcoursActuel.push(base64);
+                rafraichirModalPhotos();
+
+                if (parcoursActuelIndex !== null && window.mettreAJourPhotosParcours) {
+                    window.mettreAJourPhotosParcours(parcoursActuelIndex, photosParcoursActuel);
+                }
+            };
+            reader.readAsDataURL(input.files[0]);
+            input.value = "";
         }
 
         window.fermerFicheParcours = function() {

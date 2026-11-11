@@ -49,15 +49,15 @@
         .parcours-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
         .parcours-scroll::-webkit-scrollbar { display: none; }
         
-        .parcours-card { width: 180px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+        .parcours-card { width: 180px; flex-shrink: 0; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; overflow: hidden; cursor: pointer; transition: transform 0.2s; position: relative; }
         .parcours-card:active { transform: scale(0.97); }
         .parcours-img-container { position: relative; width: 100%; height: 110px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; }
         .parcours-img { width: 100%; height: 100%; object-fit: cover; }
         .parcours-placeholder { font-size: 2rem; color: #94a3b8; }
         .parcours-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px); }
-        .parcours-info { padding: 10px; }
-        .parcours-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-        .parcours-details { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+        .parcours-info { padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .parcours-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .delete-btn { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; width: 24px; height: 24px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; margin-top: 15px; }
         .stat-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; text-align: left; }
@@ -116,7 +116,10 @@
 
         <div class="section-header">
             <div class="section-title">Mes parcours</div>
-            <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button onclick="nettoyerDoublonsLocaux()" style="background:#fee2e2; color:#991b1b; border:none; border-radius:8px; padding:4px 8px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Nettoyer les doublons">🧹 Nettoyer</button>
+                <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
+            </div>
         </div>
         
         <div class="parcours-scroll" id="parcours-container"></div>
@@ -164,7 +167,7 @@
         </div>
     </div>
 
-    <!-- Modale de détail d'un parcours -->
+    <!-- Modale de détail d'un parcours avec gestion et remplacement d'image -->
     <div id="parcours-modal">
         <div class="modal-content">
             <div class="modal-header-actions">
@@ -239,7 +242,7 @@
                         }
                     });
                 } catch (e) {
-                    console.warn("Impossible de joindre Firebase, affichage local uniquement.");
+                    console.warn("Impossible de joindre Firebase.");
                 }
             }
 
@@ -252,20 +255,49 @@
                     : `<div class="parcours-placeholder">🥾</div>`;
                 
                 const cardHTML = `
-                    <div class="parcours-card" onclick='ouvrirFicheParcours("${encodeURIComponent(data.nom)}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
-                        <div class="parcours-img-container">
+                    <div class="parcours-card">
+                        <div class="parcours-img-container" onclick='ouvrirFicheParcours("${encodeURIComponent(data.nom)}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
                             ${imgCoverHTML}
                             <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
                         </div>
                         <div class="parcours-info">
-                            <div class="parcours-name">${data.nom}</div>
-                            <div class="parcours-details">Voir la carte</div>
+                            <div class="parcours-name" onclick='ouvrirFicheParcours("${encodeURIComponent(data.nom)}", "${data.distance || '0 km'}", "Enregistrée", ${photosJSON}); chargerTraceFirebase(${pointsJSON});' style="cursor:pointer; flex-grow:1;">${data.nom}</div>
+                            <button class="delete-btn" onclick='supprimerParcours("${data.nom}")' title="Supprimer">🗑️</button>
                         </div>
                     </div>
                 `;
                 container.insertAdjacentHTML('beforeend', cardHTML);
             });
         };
+
+        window.supprimerParcours = function(nom) {
+            if (confirm(`Voulez-vous supprimer le parcours "${nom}" ?`)) {
+                try {
+                    let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                    localData = localData.filter(p => p.nom !== nom);
+                    localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
+                    chargerParcoursFirebase();
+                } catch(e) { console.error(e); }
+            }
+        }
+
+        window.nettoyerDoublonsLocaux = function() {
+            try {
+                let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                let uniques = [];
+                let nomsVus = new Set();
+                // Garder les plus récents ou ceux qui ont des photos en priorité
+                localData.reverse().forEach(p => {
+                    if (!nomsVus.has(p.nom)) {
+                        nomsVus.add(p.nom);
+                        uniques.push(p);
+                    }
+                });
+                localStorage.setItem('mes_randos_locales', JSON.stringify(uniques.reverse()));
+                chargerParcoursFirebase();
+                alert("Doublons nettoyés !");
+            } catch(e) { console.error(e); }
+        }
 
         window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray, photosArray) {
             const nouveauParcours = {
@@ -276,31 +308,16 @@
                 date: new Date().toISOString()
             };
 
-            let sauvegardeReussie = false;
-
-            if (db) {
-                try {
-                    await addDoc(collection(db, "parcours"), nouveauParcours);
-                    sauvegarderReussie = true;
-                } catch (e) {
-                    console.warn("Erreur Firebase, sauvegarde locale.");
-                }
-            }
-
             try {
                 let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                // Éviter les doublons lors de l'enregistrement immédiat
+                localData = localData.filter(p => p.nom !== nom);
                 localData.push(nouveauParcours);
                 localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                sauvegarderReussie = true;
-            } catch (err) {
-                console.error("Erreur stockage local :", err);
-            }
-
-            if (sauvegarderReussie) {
                 alert("Randonnée enregistrée avec succès !");
                 chargerParcoursFirebase();
-            } else {
-                alert("Erreur lors de l'enregistrement.");
+            } catch (err) {
+                console.error("Erreur stockage local :", err);
             }
         };
 
@@ -355,7 +372,11 @@
             const photoContainer = document.getElementById('modal-photos-container');
             photoContainer.innerHTML = "";
 
-            photosParcoursActuel.forEach(p => {
+            photosParcoursActuel.forEach((p, idx) => {
+                const wrapper = document.createElement('div');
+                wrapper.style.position = 'relative';
+                wrapper.style.display = 'inline-block';
+
                 const img = document.createElement('img');
                 img.src = p;
                 img.className = 'photo-thumb';
@@ -363,14 +384,31 @@
                     document.getElementById('modal-img-src').src = p;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                photoContainer.appendChild(img);
+
+                // Bouton pour supprimer ou remplacer une photo spécifique
+                const delPhoto = document.createElement('button');
+                delPhoto.innerHTML = '×';
+                delPhoto.style.cssText = 'position:absolute; top:-5px; right:-5px; background:red; color:white; border:none; border-radius:50%; width:20px; height:20px; font-weight:bold; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center;';
+                delPhoto.title = "Supprimer cette photo";
+                delPhoto.onclick = (e) => {
+                    e.stopPropagation();
+                    photosParcoursActuel.splice(idx, 1);
+                    rafraichirModalPhotos();
+                    if (nomParcoursActuel && window.mettreAJourPhotosParcoursParNom) {
+                        window.mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
+                    }
+                };
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(delPhoto);
+                photoContainer.appendChild(wrapper);
             });
 
             if (photosParcoursActuel.length < 5) {
                 const btnAdd = document.createElement('button');
                 btnAdd.className = 'btn-add-photo';
                 btnAdd.innerHTML = '🖼️+';
-                btnAdd.title = "Ajouter une photo";
+                btnAdd.title = "Ajouter ou remplacer une photo";
                 btnAdd.onclick = () => document.getElementById('modalGalleryInput').click();
                 photoContainer.appendChild(btnAdd);
             }
@@ -698,7 +736,7 @@
                     }
                 }
 
-                // EFFACEMENT SÉCURISÉ DE LA TRACE ACTIVE À L'ARRÊT
+                // EFFACEMENT SÉCURISÉ DU TRACÉ ACTIF DE LA CARTE À L'ARRÊT
                 routeCoordinates = [];
                 if (polyline) {
                     polyline.setLatLngs([]);
@@ -730,7 +768,7 @@
         });
 
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
+            window.load(() => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(() => console.log("Service Worker enregistré !"))
                     .catch((err) => console.log("Erreur Service Worker :", err));

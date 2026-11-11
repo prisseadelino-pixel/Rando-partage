@@ -119,7 +119,7 @@
         </div>
         
         <div class="parcours-scroll" id="parcours-container">
-            <!-- Chargé depuis Firebase -->
+            <!-- Chargé depuis Firebase ou LocalStorage -->
         </div>
 
         <div class="stats-grid">
@@ -143,9 +143,7 @@
 
         <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
         <div id="photo-panel">
-            <!-- Bouton Appareil Photo direct -->
             <button class="btn-add-photo" id="btn-camera-el" onclick="document.getElementById('cameraCaptureInput').click()" title="Prendre une photo">📷</button>
-            <!-- Bouton Galerie -->
             <button class="btn-add-photo" id="btn-gallery-el" onclick="document.getElementById('galleryInput').click()" title="Choisir dans la galerie" style="background: #f0fdf4; color: #16a34a; border-color: #16a34a;">🖼️</button>
         </div>
 
@@ -185,10 +183,10 @@
         </div>
     </div>
 
-    <!-- Inputs séparés pour Appareil Photo et Galerie -->
     <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
     <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
-    <input type="file" id="gpxFileInput" accept=".gpx" style="display:none" onchange="importerFichierGPX(this)">
+    <!-- Input GPX filtré pour cibler directement les fichiers de traces -->
+    <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml" style="display:none" onchange="importerFichierGPX(this)">
 
     <div id="photo-modal" onclick="this.style.display='none'">
         <img id="modal-img-src" src="" alt="Photo rando">
@@ -212,53 +210,93 @@
             appId: "1:607427823734:web:d44d744680a"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        let db = null;
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+        } catch (e) {
+            console.warn("Firebase non initialisé, mode local actif.");
+        }
 
         window.chargerParcoursFirebase = async function() {
             const container = document.getElementById('parcours-container');
             container.innerHTML = "";
+            let tousLesParcours = [];
+
             try {
-                const querySnapshot = await getDocs(collection(db, "parcours"));
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
-                    const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
-                    const imgCover = (data.photos && data.photos.length > 0) ? data.photos[0] : 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80';
-                    
-                    const cardHTML = `
-                        <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0 km'}", "Enregistrée", "-", "Parcours stocké sur Firebase.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
-                            <div class="parcours-img-container">
-                                <img src="${imgCover}" class="parcours-img" alt="Rando">
-                                <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
-                            </div>
-                            <div class="parcours-info">
-                                <div class="parcours-name">${data.nom}</div>
-                                <div class="parcours-details">Voir la carte</div>
-                            </div>
-                        </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', cardHTML);
-                });
-            } catch (e) {
-                console.error("Erreur chargement Firebase : ", e);
+                const localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                tousLesParcours.push(...localData);
+            } catch(err) { console.error(err); }
+
+            if (db) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, "parcours"));
+                    querySnapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        if (!tousLesParcours.some(p => p.nom === data.nom && p.date === data.date)) {
+                            tousLesParcours.push(data);
+                        }
+                    });
+                } catch (e) {
+                    console.warn("Impossible de joindre Firebase, affichage local uniquement.");
+                }
             }
+
+            tousLesParcours.forEach((data) => {
+                const photosJSON = JSON.stringify(data.photos || []).replace(/"/g, '&quot;');
+                const pointsJSON = JSON.stringify(data.points || []).replace(/"/g, '&quot;');
+                const imgCover = (data.photos && data.photos.length > 0) ? data.photos[0] : 'https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=400&q=80';
+                
+                const cardHTML = `
+                    <div class="parcours-card" onclick='ouvrirFicheParcours("${data.nom}", "${data.distance || '0 km'}", "Enregistrée", "-", "Parcours de randonnée.", ${photosJSON}); chargerTraceFirebase(${pointsJSON});'>
+                        <div class="parcours-img-container">
+                            <img src="${imgCover}" class="parcours-img" alt="Rando">
+                            <div class="parcours-badge">📍 ${data.distance || '0 km'}</div>
+                        </div>
+                        <div class="parcours-info">
+                            <div class="parcours-name">${data.nom}</div>
+                            <div class="parcours-details">Voir la carte</div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHTML);
+            });
         };
 
         window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray, photosArray) {
+            const nouveauParcours = {
+                nom: nom,
+                distance: distance,
+                points: pointsArray,
+                photos: photosArray || [],
+                date: new Date().toISOString()
+            };
+
+            let sauvegardeReussie = false;
+
+            if (db) {
+                try {
+                    await addDoc(collection(db, "parcours"), nouveauParcours);
+                    sauvegarderReussie = true;
+                } catch (e) {
+                    console.warn("Erreur Firebase, bascule sur la sauvegarde locale du téléphone.");
+                }
+            }
+
             try {
-                await addDoc(collection(db, "parcours"), {
-                    nom: nom,
-                    distance: distance,
-                    points: pointsArray,
-                    photos: photosArray || [],
-                    date: new Date().toISOString()
-                });
-                alert("Parcours enregistré avec succès sur Firebase !");
+                let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
+                localData.push(nouveauParcours);
+                localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
+                sauvegarderReussie = true;
+            } catch (err) {
+                console.error("Erreur stockage local :", err);
+            }
+
+            if (sauvegarderReussie) {
+                alert("Randonnée enregistrée avec succès !");
                 chargerParcoursFirebase();
-            } catch (e) {
-                console.error("Erreur sauvegarde : ", e);
-                alert("Erreur lors de la sauvegarde sur Firebase.");
+            } else {
+                alert("Erreur lors de l'enregistrement du parcours.");
             }
         };
 
@@ -535,7 +573,6 @@
                     document.getElementById('modal-img-src').src = photoBase64;
                     document.getElementById('photo-modal').style.display = 'flex';
                 };
-                // Insère la miniature avant les boutons d'ajout
                 panel.insertBefore(imgThumb, document.getElementById('btn-camera-el'));
 
                 if (randoPhotos.length >= 5) {
@@ -601,10 +638,16 @@
                     btnExport.style.display = 'flex';
                     const nomRando = `Rando du ${new Date().toLocaleDateString()}`;
                     const distanceStr = (totalDistance / 1000).toFixed(2) + ' km';
+                    
                     if (window.sauvegarderParcoursFirebase) {
                         window.sauvegarderParcoursFirebase(nomRando, distanceStr, routeCoordinates, randoPhotos);
                     }
                 }
+
+                if (polyline) {
+                    polyline.setLatLngs([]);
+                }
+                routeCoordinates = [];
             }
         });
 

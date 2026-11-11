@@ -276,7 +276,6 @@
                 delBtn.textContent = '🗑️';
                 delBtn.title = "Supprimer";
                 
-                // ARRÊT DE PROPAGATION STRICT POUR ÉVITER LE CONFLIT DE CLIC
                 delBtn.addEventListener('click', (e) => {
                     e.stopImmediatePropagation();
                     e.stopPropagation();
@@ -299,7 +298,6 @@
                     localData = localData.filter(p => p.nom !== nom);
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
                     
-                    // Nettoyage immédiat du tracé sur la carte si c'était celui affiché
                     if (importedRoutePolyline) {
                         map.removeLayer(importedRoutePolyline);
                         importedRoutePolyline = null;
@@ -355,7 +353,7 @@
                 if (randoCible) {
                     randoCible.photos = nouvellesPhotos;
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                    chargerParcoursLocaux(); // Rafraîchit l'affichage pour remplacer la chaussure
+                    chargerParcoursLocaux();
                 }
             } catch(e) {
                 console.error("Erreur mise à jour photo :", e);
@@ -437,11 +435,7 @@
 
         function fermerFicheParcours() {
             document.getElementById('parcours-modal').style.display = 'none';
-            // Nettoyage radical du tracé violet à la fermeture de la fiche
-            if (importedRoutePolyline) {
-                map.removeLayer(importedRoutePolyline);
-                importedRoutePolyline = null;
-            }
+            // LE TRACÉ RESTE BIEN AFFICHÉ SUR LA CARTE QUAND ON FERME LA FICHE
         }
 
         document.addEventListener('DOMContentLoaded', () => {

@@ -57,7 +57,7 @@
         .parcours-badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px); }
         .parcours-info { padding: 10px; display: flex; justify-content: space-between; align-items: center; }
         .parcours-name { font-size: 0.85rem; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; flex-grow: 1; }
-        .delete-btn { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; width: 28px; height: 28px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .delete-btn { background: #fee2e2; color: #991b1b; border: none; border-radius: 6px; width: 28px; height: 28px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 20; }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; margin-top: 15px; }
         .stat-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; text-align: left; }
@@ -201,28 +201,27 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    <script>
+        let map = null;
+        let marker = null;
+        let accuracyCircle = null;
+        let isTracking = false;
+        let routeCoordinates = [];
+        let polyline = null;
+        let importedRoutePolyline = null;
+        let randoPhotos = [];
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAwi6NLtYKm6zna-9nICQkw5-9nICQkw5",
-            authDomain: "rando-offline.firebaseapp.com",
-            projectId: "rando-offline",
-            storageBucket: "rando-offline.appspot.com",
-            messagingSenderId: "607427823734",
-            appId: "1:607427823734:web:d44d744680a"
-        };
+        let startTime = null;
+        let timerInterval = null;
+        let totalDistance = 0;
+        let altitudes = [];
+        let wakeLock = null;
+        let firstLocate = true;
 
-        let db = null;
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-        } catch (e) {
-            console.warn("Firebase non initialisé, mode local actif.");
-        }
+        let nomParcoursActuel = null;
+        let photosParcoursActuel = [];
 
-        window.chargerParcoursFirebase = async function() {
+        function chargerParcoursLocaux() {
             const container = document.getElementById('parcours-container');
             container.innerHTML = "";
             let tousLesParcours = [];
@@ -232,20 +231,6 @@
                 tousLesParcours.push(...localData);
             } catch(err) { console.error(err); }
 
-            if (db) {
-                try {
-                    const querySnapshot = await getDocs(collection(db, "parcours"));
-                    querySnapshot.forEach((docSnap) => {
-                        const data = docSnap.data();
-                        if (!tousLesParcours.some(p => p.nom === data.nom && p.date === data.date)) {
-                            tousLesParcours.push(data);
-                        }
-                    });
-                } catch (e) {
-                    console.warn("Impossible de joindre Firebase.");
-                }
-            }
-
             tousLesParcours.forEach((data) => {
                 const card = document.createElement('div');
                 card.className = 'parcours-card';
@@ -253,7 +238,6 @@
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'parcours-img-container';
                 
-                // Vérification robuste des photos pour afficher la couverture
                 if (data.photos && Array.isArray(data.photos) && data.photos.length > 0) {
                     const img = document.createElement('img');
                     img.src = data.photos[0];
@@ -273,7 +257,7 @@
 
                 imgContainer.addEventListener('click', () => {
                     ouvrirFicheParcours(data.nom, data.distance || '0 km', 'Enregistrée', data.photos || []);
-                    chargerTraceFirebase(data.points || []);
+                    chargerTraceCarte(data.points || []);
                 });
 
                 const info = document.createElement('div');
@@ -284,16 +268,19 @@
                 titleEl.textContent = data.nom;
                 titleEl.addEventListener('click', () => {
                     ouvrirFicheParcours(data.nom, data.distance || '0 km', 'Enregistrée', data.photos || []);
-                    chargerTraceFirebase(data.points || []);
+                    chargerTraceCarte(data.points || []);
                 });
 
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
                 delBtn.textContent = '🗑️';
                 delBtn.title = "Supprimer";
+                
+                // ARRÊT DE PROPAGATION STRICT POUR ÉVITER LE CONFLIT DE CLIC
                 delBtn.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
                     e.stopPropagation();
-                    supprimerParcours(data.nom);
+                    supprimerParcoursParNom(data.nom);
                 });
 
                 info.appendChild(titleEl);
@@ -303,15 +290,22 @@
                 card.appendChild(info);
                 container.appendChild(card);
             });
-        };
+        }
 
-        window.supprimerParcours = function(nom) {
-            if (confirm(`Voulez-vous supprimer le parcours "${nom}" ?`)) {
+        window.supprimerParcoursParNom = function(nom) {
+            if (confirm(`Voulez-vous supprimer définitivement le parcours "${nom}" ?`)) {
                 try {
                     let localData = JSON.parse(localStorage.getItem('mes_randos_locales') || '[]');
                     localData = localData.filter(p => p.nom !== nom);
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                    chargerParcoursFirebase();
+                    
+                    // Nettoyage immédiat du tracé sur la carte si c'était celui affiché
+                    if (importedRoutePolyline) {
+                        map.removeLayer(importedRoutePolyline);
+                        importedRoutePolyline = null;
+                    }
+
+                    chargerParcoursLocaux();
                 } catch(e) { console.error(e); }
             }
         }
@@ -328,12 +322,12 @@
                     }
                 });
                 localStorage.setItem('mes_randos_locales', JSON.stringify(uniques.reverse()));
-                chargerParcoursFirebase();
+                chargerParcoursLocaux();
                 alert("Doublons nettoyés !");
             } catch(e) { console.error(e); }
         }
 
-        window.sauvegarderParcoursFirebase = async function(nom, distance, pointsArray, photosArray) {
+        window.sauvegarderParcoursLocal = function(nom, distance, pointsArray, photosArray) {
             const nouveauParcours = {
                 nom: nom,
                 distance: distance,
@@ -348,7 +342,7 @@
                 localData.push(nouveauParcours);
                 localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
                 alert("Randonnée enregistrée avec succès !");
-                chargerParcoursFirebase();
+                chargerParcoursLocaux();
             } catch (err) {
                 console.error("Erreur stockage local :", err);
             }
@@ -361,48 +355,14 @@
                 if (randoCible) {
                     randoCible.photos = nouvellesPhotos;
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                    chargerParcoursFirebase(); // Recharge l'affichage pour remplacer la chaussure par la nouvelle photo
+                    chargerParcoursLocaux(); // Rafraîchit l'affichage pour remplacer la chaussure
                 }
             } catch(e) {
                 console.error("Erreur mise à jour photo :", e);
             }
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            chargerParcoursFirebase();
-            
-            document.getElementById('btn-nettoyer').addEventListener('click', nettoyerDoublonsLocaux);
-            document.getElementById('btn-add-gpx').addEventListener('click', () => document.getElementById('gpxFileInput').click());
-            document.getElementById('btn-camera-el').addEventListener('click', () => document.getElementById('cameraCaptureInput').click());
-            document.getElementById('btn-gallery-el').addEventListener('click', () => document.getElementById('galleryInput').click());
-            
-            document.getElementById('cameraCaptureInput').addEventListener('change', (e) => traiterPhoto(e.target));
-            document.getElementById('galleryInput').addEventListener('change', (e) => traiterPhoto(e.target));
-            document.getElementById('modalGalleryInput').addEventListener('change', (e) => ajouterPhotoParcoursExistant(e.target));
-            document.getElementById('gpxFileInput').addEventListener('change', (e) => importerFichierGPX(e.target));
-            
-            document.getElementById('modal-close-x').addEventListener('click', fermerFicheParcours);
-            document.getElementById('modal-close-btn').addEventListener('click', fermerFicheParcours);
-        });
-    </script>
-
-    <script>
-        const bottomSheet = document.getElementById('bottom-sheet');
-        const btnToggleSheet = document.getElementById('btn-toggle-sheet');
-        const sheetHandleBar = document.getElementById('sheet-handle-bar');
-
-        function togglePanel() {
-            bottomSheet.classList.toggle('minimized');
-            setTimeout(() => { if(map) map.invalidateSize(); }, 300);
-        }
-
-        btnToggleSheet.addEventListener('click', togglePanel);
-        sheetHandleBar.addEventListener('click', togglePanel);
-
-        let nomParcoursActuel = null;
-        let photosParcoursActuel = [];
-
-        window.ouvrirFicheParcours = function(nom, longueur, duree, photos) {
+        function ouvrirFicheParcours(nom, longueur, duree, photos) {
             nomParcoursActuel = nom;
             photosParcoursActuel = photos || [];
 
@@ -414,7 +374,7 @@
             document.getElementById('parcours-modal').style.display = 'flex';
         }
 
-        window.rafraichirModalPhotos = function() {
+        function rafraichirModalPhotos() {
             const photoContainer = document.getElementById('modal-photos-container');
             photoContainer.innerHTML = "";
 
@@ -439,8 +399,8 @@
                     e.stopPropagation();
                     photosParcoursActuel.splice(idx, 1);
                     rafraichirModalPhotos();
-                    if (nomParcoursActuel && window.mettreAJourPhotosParcoursParNom) {
-                        window.mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
+                    if (nomParcoursActuel) {
+                        mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
                     }
                 };
 
@@ -459,7 +419,7 @@
             }
         }
 
-        window.ajouterPhotoParcoursExistant = function(input) {
+        function ajouterPhotoParcoursExistant(input) {
             if (!input.files || !input.files[0]) return;
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -467,37 +427,55 @@
                 photosParcoursActuel.push(base64);
                 rafraichirModalPhotos();
 
-                if (nomParcoursActuel && window.mettreAJourPhotosParcoursParNom) {
-                    window.mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
+                if (nomParcoursActuel) {
+                    mettreAJourPhotosParcoursParNom(nomParcoursActuel, photosParcoursActuel);
                 }
             };
             reader.readAsDataURL(input.files[0]);
             input.value = "";
         }
 
-        window.fermerFicheParcours = function() {
+        function fermerFicheParcours() {
             document.getElementById('parcours-modal').style.display = 'none';
+            // Nettoyage radical du tracé violet à la fermeture de la fiche
+            if (importedRoutePolyline) {
+                map.removeLayer(importedRoutePolyline);
+                importedRoutePolyline = null;
+            }
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            chargerParcoursLocaux();
+            
+            document.getElementById('btn-nettoyer').addEventListener('click', nettoyerDoublonsLocaux);
+            document.getElementById('btn-add-gpx').addEventListener('click', () => document.getElementById('gpxFileInput').click());
+            document.getElementById('btn-camera-el').addEventListener('click', () => document.getElementById('cameraCaptureInput').click());
+            document.getElementById('btn-gallery-el').addEventListener('click', () => document.getElementById('galleryInput').click());
+            
+            document.getElementById('cameraCaptureInput').addEventListener('change', (e) => traiterPhoto(e.target));
+            document.getElementById('galleryInput').addEventListener('change', (e) => traiterPhoto(e.target));
+            document.getElementById('modalGalleryInput').addEventListener('change', (e) => ajouterPhotoParcoursExistant(e.target));
+            document.getElementById('gpxFileInput').addEventListener('change', (e) => importerFichierGPX(e.target));
+            
+            document.getElementById('modal-close-x').addEventListener('click', fermerFicheParcours);
+            document.getElementById('modal-close-btn').addEventListener('click', fermerFicheParcours);
+        });
+
+        const bottomSheet = document.getElementById('bottom-sheet');
+        const btnToggleSheet = document.getElementById('btn-toggle-sheet');
+        const sheetHandleBar = document.getElementById('sheet-handle-bar');
+
+        function togglePanel() {
+            bottomSheet.classList.toggle('minimized');
+            setTimeout(() => { if(map) map.invalidateSize(); }, 300);
+        }
+
+        btnToggleSheet.addEventListener('click', togglePanel);
+        sheetHandleBar.addEventListener('click', togglePanel);
 
         let defaultLat = 48.8566;
         let defaultLon = 2.3522;
         let defaultZoom = 18;
-
-        let map = null;
-        let marker = null;
-        let accuracyCircle = null;
-        let isTracking = false;
-        let routeCoordinates = [];
-        let polyline = null;
-        let importedRoutePolyline = null;
-        let randoPhotos = [];
-
-        let startTime = null;
-        let timerInterval = null;
-        let totalDistance = 0;
-        let altitudes = [];
-        let wakeLock = null;
-        let firstLocate = true;
 
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
@@ -509,17 +487,8 @@
             }
         }
 
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible' && isTracking) {
-                await requestWakeLock();
-            }
-        });
-
         fetch('config.json')
-            .then(response => {
-                if (!response.ok) throw new Error("config non trouvée");
-                return response.json();
-            })
+            .then(response => response.json())
             .then(config => {
                 if (config.default_view) {
                     defaultLat = config.default_view.latitude;
@@ -536,23 +505,11 @@
 
             map = L.map('map', { zoomControl: false }).setView([lat, lon], zoom);
 
-            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            });
-
-            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                maxZoom: 17,
-                attribution: '© OpenTopoMap / OpenStreetMap'
-            });
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenTopoMap' });
 
             osmLayer.addTo(map);
-
-            const baseMaps = {
-                "🏙️ Standard": osmLayer,
-                "🗺️ Topo Rando": topoLayer
-            };
-            L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
+            L.control.layers({ "🏙️ Standard": osmLayer, "🗺️ Topo": topoLayer }, null, { position: 'topleft' }).addTo(map);
 
             document.getElementById('btn-zoom-in').addEventListener('click', () => map.zoomIn());
             document.getElementById('btn-zoom-out').addEventListener('click', () => map.zoomOut());
@@ -560,16 +517,10 @@
             polyline = L.polyline([], { color: '#2563eb', weight: 5, opacity: 0.8 }).addTo(map);
 
             document.getElementById('btn-locate').addEventListener('click', () => {
-                if (marker) {
-                    map.setView(marker.getLatLng(), 18);
-                }
+                if (marker) map.setView(marker.getLatLng(), 18);
             });
 
-            map.locate({ 
-                watch: true, 
-                enableHighAccuracy: true, 
-                maximumAge: 0 
-            });
+            map.locate({ watch: true, enableHighAccuracy: true, maximumAge: 0 });
 
             map.on('locationfound', (e) => {
                 const latlng = e.latlng;
@@ -620,13 +571,9 @@
                     }
                 }
             });
-
-            map.on('locationerror', (e) => {
-                console.warn("GPS en attente : " + e.message);
-            });
         }
 
-        window.importerFichierGPX = function(input) {
+        function importerFichierGPX(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
             const reader = new FileReader();
@@ -637,79 +584,54 @@
                 const xmlDoc = parser.parseFromString(gpxText, "text/xml");
 
                 const points = [];
-                const trkpts = xmlDoc.querySelectorAll("trkpt, rtept");
-
-                trkpts.forEach(pt => {
+                xmlDoc.querySelectorAll("trkpt, rtept").forEach(pt => {
                     const lat = parseFloat(pt.getAttribute("lat"));
                     const lon = parseFloat(pt.getAttribute("lon"));
-                    if (!isNaN(lat) && !isNaN(lon)) {
-                        points.push({ lat: lat, lng: lon });
-                    }
+                    if (!isNaN(lat) && !isNaN(lon)) points.push({ lat, lng: lon });
                 });
 
                 if (points.length > 0) {
-                    // NETTOYAGE RADICAL DE L'ANCIEN TRACÉ AVANT D'AFFICHER LE NOUVEAU
-                    if (importedRoutePolyline) {
-                        map.removeLayer(importedRoutePolyline);
-                        importedRoutePolyline = null;
-                    }
-                    const latLngs = points.map(p => [p.lat, p.lng]);
-                    importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
+                    if (importedRoutePolyline) map.removeLayer(importedRoutePolyline);
+                    importedRoutePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
                     map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
 
                     let distCalc = 0;
                     for (let i = 1; i < points.length; i++) {
-                        const p1 = L.latLng(points[i-1].lat, points[i-1].lng);
-                        const p2 = L.latLng(points[i].lat, points[i].lng);
-                        distCalc += p1.distanceTo(p2);
+                        distCalc += L.latLng(points[i-1]).distanceTo(points[i]);
                     }
-                    const distanceEstimee = (distCalc / 1000).toFixed(2) + ' km';
-                    const nomRando = file.name.replace(/\.[^/.]+$/, "");
-
-                    if (window.sauvegarderParcoursFirebase) {
-                        window.sauvegarderParcoursFirebase(nomRando, distanceEstimee, points, randoPhotos);
-                    }
-                } else {
-                    alert("Impossible de lire les points de ce fichier GPX.");
+                    sauvegarderParcoursLocal(file.name.replace(/\.[^/.]+$/, ""), (distCalc / 1000).toFixed(2) + ' km', points, randoPhotos);
                 }
             };
-
             reader.readAsText(file);
             input.value = "";
         }
 
-        window.chargerTraceFirebase = function(points) {
+        function chargerTraceCarte(points) {
             if (!points || points.length === 0) return;
-            // NETTOYAGE RADICAL DE L'ANCIEN TRACÉ AVANT D'AFFICHER LE NOUVEAU
             if (importedRoutePolyline) {
                 map.removeLayer(importedRoutePolyline);
                 importedRoutePolyline = null;
             }
-            const latLngs = points.map(p => [p.lat, p.lng]);
-            importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
+            importedRoutePolyline = L.polyline(points.map(p => [p.lat, p.lng]), { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
             map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
             togglePanel();
         }
 
-        window.traiterPhoto = function(input) {
+        function traiterPhoto(input) {
             if (!input.files || !input.files[0]) return;
             if (randoPhotos.length >= 5) {
-                alert("Vous avez atteint la limite de 5 photos pour ce parcours.");
+                alert("Limite de 5 photos atteinte.");
                 return;
             }
             const reader = new FileReader();
             reader.onload = (e) => {
-                const photoBase64 = e.target.result;
-                randoPhotos.push(photoBase64);
+                const base64 = e.target.result;
+                randoPhotos.push(base64);
                 
                 const panel = document.getElementById('photo-panel');
                 const imgThumb = document.createElement('img');
-                imgThumb.src = photoBase64;
+                imgThumb.src = base64;
                 imgThumb.className = 'photo-thumb';
-                imgThumb.onclick = () => {
-                    document.getElementById('modal-img-src').src = photoBase64;
-                    document.getElementById('photo-modal').style.display = 'flex';
-                };
                 panel.insertBefore(imgThumb, document.getElementById('btn-camera-el'));
 
                 if (randoPhotos.length >= 5) {
@@ -720,21 +642,6 @@
             reader.readAsDataURL(input.files[0]);
             input.value = "";
         }
-
-        window.addEventListener('online', updateNetworkStatus);
-        window.addEventListener('offline', updateNetworkStatus);
-
-        function updateNetworkStatus() {
-            const statusEl = document.getElementById('network-status');
-            if (navigator.onLine) {
-                statusEl.textContent = 'En ligne';
-                statusEl.className = 'status-online';
-            } else {
-                statusEl.textContent = 'Hors-ligne';
-                statusEl.className = 'status-offline';
-            }
-        }
-        updateNetworkStatus();
 
         const btnTracking = document.getElementById('btn-toggle-tracking');
         const btnExport = document.getElementById('btn-export-gpx');
@@ -751,9 +658,7 @@
                 randoPhotos = [];
                 startTime = Date.now();
                 
-                if (polyline) {
-                    polyline.setLatLngs([]);
-                }
+                if (polyline) polyline.setLatLngs([]);
                 if (importedRoutePolyline) {
                     map.removeLayer(importedRoutePolyline);
                     importedRoutePolyline = null;
@@ -781,51 +686,13 @@
                 
                 if (routeCoordinates.length > 0) {
                     btnExport.style.display = 'flex';
-                    const nomRando = `Rando du ${new Date().toLocaleDateString()}`;
-                    const distanceStr = (totalDistance / 1000).toFixed(2) + ' km';
-                    
-                    if (window.sauvegarderParcoursFirebase) {
-                        window.sauvegarderParcoursFirebase(nomRando, distanceStr, routeCoordinates, randoPhotos);
-                    }
+                    sauvegarderParcoursLocal(`Rando du ${new Date().toLocaleDateString()}`, (totalDistance / 1000).toFixed(2) + ' km', routeCoordinates, randoPhotos);
                 }
 
                 routeCoordinates = [];
-                if (polyline) {
-                    polyline.setLatLngs([]);
-                }
+                if (polyline) polyline.setLatLngs([]);
             }
         });
-
-        btnExport.addEventListener('click', () => {
-            if (routeCoordinates.length === 0) return;
-
-            let gpxData = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-            gpxData += `<gpx version="1.1" creator="RandoOffline">\n`;
-            gpxData += `  <trk>\n    <name>Ma Randonnée</name>\n    <trkseg>\n`;
-
-            routeCoordinates.forEach(pt => {
-                gpxData += `      <trkpt lat="${pt.lat}" lon="${pt.lng}"></trkpt>\n`;
-            });
-
-            gpxData += `    </trkseg>\n  </trk>\n</gpx>`;
-
-            const blob = new Blob([gpxData], { type: 'application/gpx+xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `rando_${new Date().toISOString().slice(0,10)}.gpx`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        });
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(() => console.log("Service Worker enregistré !"))
-                    .catch((err) => console.log("Erreur Service Worker :", err));
-            });
-        }
     </script>
 </body>
 </html>

@@ -119,9 +119,7 @@
             <div class="section-action" onclick="document.getElementById('gpxFileInput').click()" title="Ajouter un GPX">📂 +</div>
         </div>
         
-        <div class="parcours-scroll" id="parcours-container">
-            <!-- Chargé dynamiquement -->
-        </div>
+        <div class="parcours-scroll" id="parcours-container"></div>
 
         <div class="stats-grid">
             <div class="stat-card">
@@ -665,6 +663,10 @@
                 randoPhotos = [];
                 startTime = Date.now();
                 
+                if (polyline) {
+                    polyline.setLatLngs([]);
+                }
+
                 await requestWakeLock();
 
                 timerInterval = setInterval(() => {
@@ -695,11 +697,11 @@
                     }
                 }
 
-                // Nettoyage immédiat et complet de la trace active sur la carte à l'arrêt
+                // VIDAGE RADICAL DU TRACÉ ACTIF DE LA CARTE À L'ARRÊT
+                routeCoordinates = [];
                 if (polyline) {
                     polyline.setLatLngs([]);
                 }
-                routeCoordinates = [];
             }
         });
 

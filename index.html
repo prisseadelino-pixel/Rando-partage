@@ -252,7 +252,9 @@
 
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'parcours-img-container';
-                if (data.photos && data.photos.length > 0) {
+                
+                // Vérification robuste des photos pour afficher la couverture
+                if (data.photos && Array.isArray(data.photos) && data.photos.length > 0) {
                     const img = document.createElement('img');
                     img.src = data.photos[0];
                     img.className = 'parcours-img';
@@ -263,6 +265,7 @@
                     placeholder.textContent = '🥾';
                     imgContainer.appendChild(placeholder);
                 }
+
                 const badge = document.createElement('div');
                 badge.className = 'parcours-badge';
                 badge.textContent = `📍 ${data.distance || '0 km'}`;
@@ -358,7 +361,7 @@
                 if (randoCible) {
                     randoCible.photos = nouvellesPhotos;
                     localStorage.setItem('mes_randos_locales', JSON.stringify(localData));
-                    chargerParcoursFirebase();
+                    chargerParcoursFirebase(); // Recharge l'affichage pour remplacer la chaussure par la nouvelle photo
                 }
             } catch(e) {
                 console.error("Erreur mise à jour photo :", e);
@@ -368,7 +371,6 @@
         window.addEventListener('DOMContentLoaded', () => {
             chargerParcoursFirebase();
             
-            // Écouteurs globaux sécurisés
             document.getElementById('btn-nettoyer').addEventListener('click', nettoyerDoublonsLocaux);
             document.getElementById('btn-add-gpx').addEventListener('click', () => document.getElementById('gpxFileInput').click());
             document.getElementById('btn-camera-el').addEventListener('click', () => document.getElementById('cameraCaptureInput').click());
@@ -646,8 +648,10 @@
                 });
 
                 if (points.length > 0) {
+                    // NETTOYAGE RADICAL DE L'ANCIEN TRACÉ AVANT D'AFFICHER LE NOUVEAU
                     if (importedRoutePolyline) {
                         map.removeLayer(importedRoutePolyline);
+                        importedRoutePolyline = null;
                     }
                     const latLngs = points.map(p => [p.lat, p.lng]);
                     importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
@@ -676,8 +680,10 @@
 
         window.chargerTraceFirebase = function(points) {
             if (!points || points.length === 0) return;
+            // NETTOYAGE RADICAL DE L'ANCIEN TRACÉ AVANT D'AFFICHER LE NOUVEAU
             if (importedRoutePolyline) {
                 map.removeLayer(importedRoutePolyline);
+                importedRoutePolyline = null;
             }
             const latLngs = points.map(p => [p.lat, p.lng]);
             importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);

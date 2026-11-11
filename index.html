@@ -166,7 +166,7 @@
         </div>
     </div>
 
-    <!-- Modale de détail d'un parcours (avec gestion des photos et modification) -->
+    <!-- Modale de détail d'un parcours -->
     <div id="parcours-modal">
         <div class="modal-content">
             <div class="modal-header-actions">
@@ -181,9 +181,7 @@
             <p class="modal-desc" id="modal-desc">Parcours de randonnée.</p>
             
             <div style="font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px; text-align: left;">Photos de ce parcours (Max 5) :</div>
-            <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; align-items: center;">
-                <!-- Les photos existantes + bouton pour en ajouter depuis la galerie -->
-            </div>
+            <div id="modal-photos-container" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; align-items: center;"></div>
 
             <button class="btn-main btn-start" onclick="fermerFicheParcours()" style="margin-bottom: 10px;">🟢 Fermer</button>
         </div>
@@ -191,9 +189,7 @@
 
     <input type="file" id="cameraCaptureInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
     <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
-    <!-- Input spécifique pour ajouter une photo directement depuis la modale d'un parcours existant -->
     <input type="file" id="modalGalleryInput" accept="image/*" style="display:none" onchange="ajouterPhotoParcoursExistant(this)">
-    
     <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml" style="display:none" onchange="importerFichierGPX(this)">
 
     <div id="photo-modal" onclick="this.style.display='none'">
@@ -204,7 +200,6 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Firebase & Application Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -290,7 +285,7 @@
                     await addDoc(collection(db, "parcours"), nouveauParcours);
                     sauvegarderReussie = true;
                 } catch (e) {
-                    console.warn("Erreur Firebase, sauvegarde locale de secours.");
+                    console.warn("Erreur Firebase, sauvegarde locale.");
                 }
             }
 
@@ -307,7 +302,7 @@
                 alert("Randonnée enregistrée avec succès !");
                 chargerParcoursFirebase();
             } else {
-                alert("Erreur lors de l'enregistrement du parcours.");
+                alert("Erreur lors de l'enregistrement.");
             }
         };
 
@@ -376,7 +371,7 @@
                 const btnAdd = document.createElement('button');
                 btnAdd.className = 'btn-add-photo';
                 btnAdd.innerHTML = '🖼️+';
-                btnAdd.title = "Ajouter une photo depuis la galerie";
+                btnAdd.title = "Ajouter une photo";
                 btnAdd.onclick = () => document.getElementById('modalGalleryInput').click();
                 photoContainer.appendChild(btnAdd);
             }
@@ -700,6 +695,7 @@
                     }
                 }
 
+                // Nettoyage immédiat et complet de la trace active sur la carte à l'arrêt
                 if (polyline) {
                     polyline.setLatLngs([]);
                 }

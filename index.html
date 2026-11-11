@@ -246,12 +246,10 @@
                 tousLesParcours.push(...localData);
             } catch(err) { console.error(err); }
 
-            // Récupérer tous les dossiers uniques existants
             tousLesParcours.forEach(p => {
                 if (p.dossier) dossiersSet.add(p.dossier);
             });
 
-            // Reconstruire la barre de filtres des dossiers
             folderFilterContainer.innerHTML = `<div class="folder-chip ${dossierActuelFiltre === 'Tous' ? 'active' : ''}" data-folder="Tous">📁 Tous</div>`;
             dossiersSet.forEach(dossier => {
                 const chip = document.createElement('div');
@@ -265,13 +263,11 @@
                 folderFilterContainer.appendChild(chip);
             });
 
-            // Remettre l'écouteur sur "Tous"
             folderFilterContainer.querySelector('[data-folder="Tous"]').addEventListener('click', () => {
                 dossierActuelFiltre = "Tous";
                 chargerParcoursLocaux();
             });
 
-            // Filtrer selon le dossier sélectionné
             const parcoursAffiches = tousLesParcours.filter(p => {
                 if (dossierActuelFiltre === "Tous") return true;
                 return p.dossier === dossierActuelFiltre;
@@ -382,7 +378,7 @@
             let nomRando = prompt("Nom de la randonnée :", nomDefaut);
             if (!nomRando) return;
 
-            let dossierRando = prompt("Dans quel dossier souhaitez-vous enregistrer ce parcours ? (ex: Montagne, Forêt, Vacances)", "Général");
+            let dossierRando = prompt("Dans quel dossier souhaitez-vous enregistrer ce parcours ? (ex: Paris, Montagne, Forêt)", "Général");
             if (!dossierRando) dossierRando = "Général";
 
             const nouveauParcours = {

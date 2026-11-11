@@ -143,6 +143,7 @@
 
         <div style="text-align: left; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px;">Photos du parcours (Max 5)</div>
         <div id="photo-panel">
+            <!-- Corrigé pour autoriser la galerie ou l'appareil photo du téléphone -->
             <button class="btn-add-photo" id="btn-add-photo-el" onclick="document.getElementById('cameraInput').click()">📷</button>
         </div>
 
@@ -182,7 +183,8 @@
         </div>
     </div>
 
-    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
+    <!-- Input galerie / photo sans blocage de capture forcée -->
+    <input type="file" id="cameraInput" accept="image/*" style="display:none" onchange="traiterPhoto(this)">
     <input type="file" id="gpxFileInput" accept=".gpx" style="display:none" onchange="importerFichierGPX(this)">
 
     <div id="photo-modal" onclick="this.style.display='none'">
@@ -508,7 +510,7 @@
             const latLngs = points.map(p => [p.lat, p.lng]);
             importedRoutePolyline = L.polyline(latLngs, { color: '#9333ea', weight: 5, opacity: 0.9 }).addTo(map);
             map.fitBounds(importedRoutePolyline.getBounds(), { padding: [50, 50] });
-            togglePanel(); // Réduit le panneau pour voir la carte
+            togglePanel();
         }
 
         window.traiterPhoto = function(input) {
